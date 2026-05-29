@@ -1,0 +1,25 @@
+【古海大陆 · 如何启动】
+作者：WEI x CURSOR
+
+1. 双击 start.bat
+2. 黑窗口不要关，浏览器会自动打开
+3. 若没自动打开，看黑窗口里的地址，一般是：
+   http://127.0.0.1:3000
+
+【若双击闪退 / 报错】
+
+- 安装 Node.js：https://nodejs.org （选 LTS）
+- 安装后重新双击 start.bat
+- start.bat 会新开一个黑窗口并保持打开；若报错，窗口里会显示原因，不会一闪就关
+
+【备选：Cursor 里启动】
+
+  cd "E:\vibe coding"
+  node server.js
+
+或安装 Live Server 插件，右键 index.html -> Open with Live Server
+
+【注意】
+
+- 不能直接双击 index.html（游戏会加载失败）
+- 关黑窗口 = 关游戏

@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<!-- 古海大陆 | WEI x CURSOR -->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>古海大陆</title>
+  <link rel="stylesheet" href="css/game.css">
+</head>
+<body class="pixel-theme">
+  <nav class="sidebar">
+    <div class="logo">
+      <img src="assets/img/ui/logo.png" alt="" class="pixel-art logo-icon" onerror="this.style.display='none'">
+      <div class="logo-title-row">
+        <span class="logo-name">古海大陆</span>
+        <span class="logo-version" id="gameVersion"></span>
+      </div>
+      <span class="game-author">WEI x CURSOR</span>
+    </div>
+    <button class="nav-btn active" data-page="char"><img src="assets/img/icons/nav/char.svg" alt="" class="nav-icon"><span>角色</span></button>
+    <button class="nav-btn" data-page="map"><img src="assets/img/icons/nav/map.svg" alt="" class="nav-icon"><span>地图</span></button>
+    <button class="nav-btn" data-page="codex"><img src="assets/img/icons/nav/codex.svg" alt="" class="nav-icon"><span>图鉴</span></button>
+    <button class="nav-btn" data-page="bag"><img src="assets/img/icons/nav/bag.svg" alt="" class="nav-icon"><span>背包</span></button>
+    <button class="nav-btn" data-page="shop"><img src="assets/img/icons/nav/shop.svg" alt="" class="nav-icon"><span>商店</span></button>
+    <button class="nav-btn" data-page="auction"><img src="assets/img/icons/nav/auction.svg" alt="" class="nav-icon"><span>拍卖会</span></button>
+    <button class="nav-btn" data-page="life"><img src="assets/img/icons/nav/life.svg" alt="" class="nav-icon"><span>生活</span></button>
+    <button class="nav-btn" data-page="checkin"><img src="assets/img/icons/nav/checkin.svg" alt="" class="nav-icon"><span>签到</span></button>
+    <button class="nav-btn" data-page="pet"><img src="assets/img/icons/nav/pet.svg" alt="" class="nav-icon"><span>宠物</span></button>
+    <button class="nav-btn debug" data-page="cheat"><img src="assets/img/icons/nav/cheat.svg" alt="" class="nav-icon"><span>金手指</span></button>
+  </nav>
+
+  <main class="main">
+    <div class="top-bar" id="topBar"></div>
+
+    <div class="page active" id="page-char">
+      <div class="card">
+        <h2>角色信息</h2>
+        <div id="charProfile" class="char-profile"></div>
+        <div class="stats-grid" id="charStats"></div>
+      </div>
+      <div class="card">
+        <h2>装备栏位</h2>
+        <div class="equip-slots" id="equipSlots"></div>
+        <div id="slotPicker" class="slot-picker" style="display:none">
+          <h3 id="slotPickerTitle">从背包选择</h3>
+          <ul class="picker-list" id="slotPickerList"></ul>
+        </div>
+        <p class="footer-tip">套装效果请见图鉴 · 装备页</p>
+      </div>
+      <div class="card">
+        <h2>武功栏</h2>
+        <ul class="skill-list" id="skillDisplay"></ul>
+      </div>
+      <div class="card">
+        <h2>天赋</h2>
+        <ul class="skill-list" id="talentDisplay"></ul>
+        <p class="footer-tip">花金币觉醒天赋，被动永久生效（最多全选 5 个）</p>
+      </div>
+    </div>
+
+    <div class="page" id="page-map">
+      <div class="card map-card">
+        <h2>连线地图</h2>
+        <p class="footer-tip">■ 黑格→蓝格 · 👑红Boss · 📦紫箱 · 💊绿补给 · 左键拖线 · 确认后弹出战斗 · 药品全自动</p>
+        <div class="grid-region-tabs" id="gridRegionTabs"></div>
+        <p class="grid-status" id="gridStatus">左键长按拖线，从黑格连到蓝格</p>
+        <div class="path-grid-wrap">
+          <div class="path-grid" id="pathGrid"></div>
+        </div>
+        <div class="grid-actions">
+          <button type="button" class="btn btn-sm btn-outline" id="gridClear">清除连线</button>
+          <button type="button" class="btn btn-sm" id="gridGo">确认路线</button>
+        </div>
+        <div class="route-share">
+          <input type="text" id="routeShareInput" placeholder="路线分享码" class="route-share-input">
+          <button type="button" class="btn btn-sm btn-outline" id="routeExport">复制路线</button>
+          <button type="button" class="btn btn-sm btn-outline" id="routeImport">导入路线</button>
+        </div>
+        <p class="footer-tip" id="gridMapInfo"></p>
+        <div id="monsterGallery" class="monster-gallery"></div>
+      </div>
+    </div>
+
+    <div class="page" id="page-codex">
+      <div class="card">
+        <div class="codex-tabs">
+          <button type="button" class="codex-tab active" data-codex="monster">怪物图鉴</button>
+          <button type="button" class="codex-tab" data-codex="equip">装备图鉴</button>
+        </div>
+        <p class="footer-tip" id="codexTip">击败足够数量解锁 lore 与弱点。瞭望术天赋可识破地图上的怪格。</p>
+        <ul class="codex-list" id="codexList"></ul>
+        <div id="equipCodexSets" style="display:none"></div>
+      </div>
+    </div>
+
+    <div class="page" id="page-bag">
+      <div class="card">
+        <h2>背包 · 可贩卖</h2>
+        <div id="bagContent"></div>
+        <p class="footer-tip" id="bagEmpty">背包是空的</p>
+      </div>
+    </div>
+
+    <div class="page" id="page-shop">
+      <div class="card">
+        <h2>商店</h2>
+        <div class="shop-tabs">
+          <button class="shop-tab active" data-shop="weapon">兵器铺</button>
+          <button class="shop-tab" data-shop="set">套装铺</button>
+          <button class="shop-tab" data-shop="gear">饰品铺</button>
+          <button class="shop-tab" data-shop="manual">藏经阁</button>
+        </div>
+        <ul class="shop-list" id="shopList"></ul>
+      </div>
+    </div>
+
+    <div class="page" id="page-auction">
+      <div class="card">
+        <h2>拍卖会</h2>
+        <p class="auction-timer" id="auctionTimer">拍品加载中…</p>
+        <p class="footer-tip">每 20 分钟刷新。金币区打折，钻石区稀世货。</p>
+        <ul class="shop-list" id="auctionBuyList"></ul>
+      </div>
+      <div class="card">
+        <h2>寄售上拍</h2>
+        <p class="footer-tip">装备寄售：金币 +25% 溢价；史诗有概率额外得 💎</p>
+        <ul class="shop-list" id="auctionConsignList"></ul>
+        <p class="footer-tip" id="auctionConsignEmpty">背包无可寄售装备</p>
+      </div>
+    </div>
+
+    <div class="page" id="page-life">
+      <div class="card">
+        <h2>生活技能</h2>
+        <p class="life-sp-bar" id="lifeSpBar">生活点：0</p>
+        <div class="life-grid" id="lifeGrid"></div>
+        <div class="life-toast" id="lifeToast">点击上方按钮开始采集，每次 +1 生活点</div>
+        <p class="footer-tip">砍柴、钓鱼、挖矿获得材料与金币</p>
+      </div>
+      <div class="card">
+        <h2>材料合成</h2>
+        <p class="footer-tip">合成后存入挂机药囊，确认路线与战斗中<strong>全自动</strong>使用，无需手动点击</p>
+        <p class="idle-potion-bar" id="craftIdleTip">挂机药囊：暂无</p>
+        <div class="craft-grid" id="craftList"></div>
+        <p class="footer-tip">淬锋散→开挂机前 · 回血药→生命&lt;40% · 行气符→清剿完毕</p>
+      </div>
+      <div class="card">
+        <h2>生活技能树</h2>
+        <p class="footer-tip">消耗生活点加点，强化对应采集线</p>
+        <div class="life-tree" id="lifeTree"></div>
+      </div>
+    </div>
+
+    <div class="page" id="page-checkin">
+      <div class="card">
+        <h2>每日签到</h2>
+        <div class="checkin-box">
+          <p>连续签到天数越多，奖励越好</p>
+          <div class="checkin-streak" id="checkinStreak">0 天</div>
+          <button class="btn" id="btnCheckin">今日签到</button>
+          <p class="footer-tip" id="checkinStatus" style="margin-top:12px"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-pet">
+      <div class="card">
+        <h2>宠物</h2>
+        <p class="footer-tip" style="margin-bottom:12px">宠物暂无属性加成，仅作陪伴展示。地图战斗有概率捕获。</p>
+        <div class="pet-grid" id="petGrid"></div>
+      </div>
+    </div>
+
+    <div class="page" id="page-cheat">
+      <div class="card">
+        <h2>金手指 · 调试</h2>
+        <div class="cheat-box">
+          <p class="footer-tip">仅修改金币/钻石/灵根，方便测试。正式玩可忽略此页。</p>
+          <label>设置金币为</label>
+          <input type="number" id="cheatGoldInput" min="0" value="1000">
+          <div class="cheat-actions">
+            <button class="btn btn-sm" id="cheatSetGold">设置金币</button>
+            <button class="btn btn-sm btn-outline" id="cheatAdd1k">+1000</button>
+            <button class="btn btn-sm btn-outline" id="cheatAdd10k">+10000</button>
+          </div>
+          <p class="footer-tip" style="margin-top:12px">当前金币：<span id="cheatGoldNow" class="gold">0</span></p>
+          <label style="margin-top:12px;display:block">设置钻石为</label>
+          <input type="number" id="cheatDiamondInput" min="0" value="10">
+          <div class="cheat-actions">
+            <button class="btn btn-sm" id="cheatSetDiamond">设置钻石</button>
+            <button class="btn btn-sm btn-outline" id="cheatAdd5dia">+5</button>
+          </div>
+          <p class="footer-tip" style="margin-top:8px">当前钻石：<span id="cheatDiamondNow" class="diamond">0</span></p>
+          <label style="margin-top:12px;display:block">灵根（测试）</label>
+          <select id="cheatSpiritRoot" class="route-share-input"></select>
+          <button class="btn btn-sm" id="cheatSetSpiritRoot" style="margin-top:8px">设置灵根</button>
+          <hr style="margin:16px 0;border:none;border-top:2px dashed var(--border)">
+          <label>存档导出 / 导入</label>
+          <div class="cheat-actions">
+            <button class="btn btn-sm" id="btnExportSave">导出 JSON</button>
+            <label class="btn btn-sm btn-outline" style="cursor:pointer">导入 JSON<input type="file" id="importSaveFile" accept=".json" hidden></label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="story-dialog" id="storyDialog">
+    <div class="story-dialog-panel">
+      <h3 id="dialogTitle">剧情</h3>
+      <p class="dialog-speaker" id="dialogSpeaker">旁白</p>
+      <p class="dialog-text" id="dialogText">……</p>
+      <button type="button" class="btn btn-sm" id="dialogNext" onclick="advanceDialog()">下一句</button>
+    </div>
+  </div>
+
+  <div class="battle-modal" id="battleModal">
+    <div class="battle-modal-panel">
+      <div class="battle-modal-head">
+        <h2 id="mapBattleTitle">挂机战斗</h2>
+        <button type="button" class="btn btn-sm btn-outline" id="battleModalClose">关闭</button>
+      </div>
+      <div class="battle-units">
+        <div class="unit-box player">
+          <div class="label">你</div>
+          <div class="sprite-slot" id="playerSprite"></div>
+          <div class="name" id="playerName">—</div>
+          <div class="unit-stats" id="playerStats">—</div>
+          <div id="playerTurnBadge" class="turn-badge" style="display:none"></div>
+          <div class="unit-hp-bar"><div class="bar-fill hp" id="playerHpBar" style="width:100%"></div></div>
+          <div id="playerHpText">0 / 0</div>
+        </div>
+        <div class="unit-box enemy">
+          <div class="label">敌人</div>
+          <div class="sprite-slot" id="monsterSprite"></div>
+          <div class="name" id="monsterName">—</div>
+          <div class="unit-stats" id="monsterStats">—</div>
+          <div id="monsterTurnBadge" class="turn-badge" style="display:none"></div>
+          <div class="unit-hp-bar"><div class="bar-fill hp" id="monsterHpBar" style="width:100%"></div></div>
+          <div id="monsterHpText">0 / 0</div>
+        </div>
+      </div>
+      <button class="btn" id="toggleBattle">开始挂机</button>
+      <div class="battle-log-wrap">
+        <h3>战斗日志</h3>
+        <div class="log" id="battleLog"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/data/config.js"></script>
+  <script src="js/data/world.js"></script>
+  <script src="js/data/life-tree.js"></script>
+  <script src="js/data/craft.js"></script>
+  <script src="js/data/spirit-roots.js"></script>
+  <script src="js/data/bosses.js"></script>
+  <script src="js/data/items.js"></script>
+  <script src="js/data/equip-codex.js"></script>
+  <script src="js/data/auction.js"></script>
+  <script src="js/data/story.js"></script>
+  <script src="js/data/codex.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/logic/dialog.js"></script>
+  <script src="js/logic/craft.js"></script>
+  <script src="js/logic.js"></script>
+  <script src="js/logic/grid.js"></script>
+  <script src="js/logic/save-io.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

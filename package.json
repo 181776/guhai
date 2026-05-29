@@ -1,0 +1,12 @@
+{
+  "name": "guhai-continent",
+  "version": "2.6.0",
+  "description": "古海大陆 · 网页文字挂机 RPG",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "WEI x CURSOR",
+  "license": "ISC"
+}
