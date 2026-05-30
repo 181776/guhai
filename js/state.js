@@ -16,6 +16,10 @@ const DEFAULT_STATE = {
   grid: null,
   codex: {}, itemCodex: {}, storyFlags: {}, bestRoutes: {},
   battleOn: false, monster: null, battleBuff: null, battleDebuff: null, battleStats: null,
+  idleMode: 'balanced', battleSpeed: 1, combo: 0, maxCombo: 0, mapStreak: 0,
+  totalKills: 0, totalBossKills: 0, totalRoutes: 0, totalCrafts: 0,
+  achievements: {}, bounty: null, lastSaveTime: 0, playerStatus: null,
+  storyChapter: 'prologue', regionRoutes: {}, regionBossKills: {}, completedChapters: [],
 };
 
 function emptyStats() { return { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, speed: 0, critRate: 0, critDmg: 0 }; }
@@ -80,6 +84,23 @@ function migrate(data) {
   d.battleBuff = data.battleBuff || null;
   d.battleDebuff = data.battleDebuff || null;
   d.battleStats = data.battleStats || null;
+  d.idleMode = data.idleMode || 'balanced';
+  d.battleSpeed = data.battleSpeed || 1;
+  d.combo = data.combo || 0;
+  d.maxCombo = data.maxCombo || 0;
+  d.mapStreak = data.mapStreak || 0;
+  d.totalKills = data.totalKills || 0;
+  d.totalBossKills = data.totalBossKills || 0;
+  d.totalRoutes = data.totalRoutes || 0;
+  d.totalCrafts = data.totalCrafts || 0;
+  d.achievements = data.achievements || {};
+  d.bounty = data.bounty || null;
+  d.lastSaveTime = data.lastSaveTime || 0;
+  d.playerStatus = data.playerStatus || null;
+  d.storyChapter = data.storyChapter || (data.storyFlags?.prologue ? 'village' : 'prologue');
+  d.regionRoutes = data.regionRoutes || {};
+  d.regionBossKills = data.regionBossKills || {};
+  d.completedChapters = data.completedChapters || [];
   if (d.grid) {
     if (d.grid.phase === 'walk') d.grid.phase = 'draw';
     if (!d.grid.clearedEncounters) d.grid.clearedEncounters = [];
@@ -126,7 +147,10 @@ function getTalentBonuses(st = state) {
 }
 
 function load() { try { const d = localStorage.getItem('idleRpgV1'); return d ? JSON.parse(d) : null; } catch { return null; } }
-function save() { localStorage.setItem('idleRpgV1', JSON.stringify(state)); }
+function save() {
+  state.lastSaveTime = Date.now();
+  localStorage.setItem('idleRpgV1', JSON.stringify(state));
+}
 
 function sumStats(list) {
   const total = emptyStats();
@@ -172,22 +196,26 @@ function calcStats(st = state) {
   const sk = sumStats(st.skills);
   const setB = getActiveSetBonuses(st);
   const tb = getTalentBonuses(st);
+  const pb = typeof getPetBonuses === 'function' ? getPetBonuses(st) : emptyStats();
+  const qk = typeof getQinglanStatBonus === 'function' ? getQinglanStatBonus(st) : emptyStats();
+  const qm = typeof getQinglanMult === 'function' ? getQinglanMult(st) : 1;
   const lv = st.level - 1;
   const bc = st.baseCrit || BASE_CRIT;
-  const maxHp = st.baseStats.hp + eq.hp + sk.hp + setB.stats.hp + tb.bonus.hp + lv * LEVEL_GROWTH.hp;
-  let critRate = bc.rate + eq.critRate + sk.critRate + setB.critRate + tb.bonus.critRate;
-  let critDmg = (bc.dmg + eq.critDmg + sk.critDmg + setB.critDmg + tb.bonus.critDmg) * tb.critDmgMult;
+  const sum = (k, grow) => Math.floor(
+    (st.baseStats[k] + eq[k] + sk[k] + setB.stats[k] + tb.bonus[k] + pb[k] + qk[k] + lv * grow) * qm
+  );
+  let maxHp = sum('hp', LEVEL_GROWTH.hp);
+  let critRate = bc.rate + eq.critRate + sk.critRate + setB.critRate + tb.bonus.critRate + pb.critRate;
+  let critDmg = (bc.dmg + eq.critDmg + sk.critDmg + setB.critDmg + tb.bonus.critDmg + pb.critDmg) * tb.critDmgMult;
+  let atk = sum('atk', LEVEL_GROWTH.atk);
+  if (st.battleBuff?.atkMult) atk = Math.floor(atk * st.battleBuff.atkMult);
   return {
     maxHp, hp: st.currentHp ?? maxHp,
-    atk: (() => {
-      let v = st.baseStats.atk + eq.atk + sk.atk + setB.stats.atk + tb.bonus.atk + lv * LEVEL_GROWTH.atk;
-      if (st.battleBuff?.atkMult) v = Math.floor(v * st.battleBuff.atkMult);
-      return v;
-    })(),
-    def: st.baseStats.def + eq.def + sk.def + setB.stats.def + tb.bonus.def + lv * LEVEL_GROWTH.def,
-    spAtk: st.baseStats.spAtk + eq.spAtk + sk.spAtk + setB.stats.spAtk + tb.bonus.spAtk + lv * LEVEL_GROWTH.spAtk,
-    spDef: st.baseStats.spDef + eq.spDef + sk.spDef + setB.stats.spDef + tb.bonus.spDef + lv * LEVEL_GROWTH.spDef,
-    speed: st.baseStats.speed + eq.speed + sk.speed + setB.stats.speed + tb.bonus.speed + lv * LEVEL_GROWTH.speed,
+    atk,
+    def: sum('def', LEVEL_GROWTH.def),
+    spAtk: sum('spAtk', LEVEL_GROWTH.spAtk),
+    spDef: sum('spDef', LEVEL_GROWTH.spDef),
+    speed: sum('speed', LEVEL_GROWTH.speed),
     critRate: Math.min(0.95, critRate),
     critDmg,
     setBonuses: setB.active,

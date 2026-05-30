@@ -1,5 +1,52 @@
 // v2.0 连线地图：不规则地形 · Boss · 路线评分 · 战斗弹窗
 
+/** 苍岚峰 · 四叶节点地形（四角菱形枢纽 + 环路 + 外延支路） */
+function buildPeakCloverShape(rows = 15, cols = 15) {
+  const walk = new Set();
+  const add = (r, c) => { if (r >= 0 && r < rows && c >= 0 && c < cols) walk.add(`${r},${c}`); };
+  const diamond = (r, c, rad) => {
+    for (let dr = -rad; dr <= rad; dr++) {
+      for (let dc = -rad; dc <= rad; dc++) {
+        if (Math.abs(dr) + Math.abs(dc) <= rad) add(r + dr, c + dc);
+      }
+    }
+  };
+  const line = (r1, c1, r2, c2) => {
+    if (r1 === r2) {
+      for (let c = Math.min(c1, c2); c <= Math.max(c1, c2); c++) add(r1, c);
+    } else {
+      for (let r = Math.min(r1, r2); r <= Math.max(r1, r2); r++) add(r, c1);
+    }
+  };
+
+  const hubs = [[3, 3], [3, cols - 4], [rows - 4, 3], [rows - 4, cols - 4]];
+  hubs.forEach(([r, c]) => diamond(r, c, 3));
+
+  const [tl, tr, bl, br] = hubs;
+  line(tl[0], tl[1], tr[0], tr[1]);
+  line(bl[0], bl[1], br[0], br[1]);
+  line(tl[0], tl[1], bl[0], bl[1]);
+  line(tr[0], tr[1], br[0], br[1]);
+
+  line(tl[0], tl[1], 0, tl[1]);
+  line(tl[0], tl[1], tl[0], 0);
+  line(tr[0], tr[1], 0, tr[1]);
+  line(tr[0], tr[1], tr[0], cols - 1);
+  line(0, tr[1], 0, cols - 1);
+  line(bl[0], bl[1], rows - 1, bl[1]);
+  line(bl[0], bl[1], bl[0], 0);
+  line(bl[0], 0, rows - 1, 0);
+  line(br[0], br[1], rows - 1, br[1]);
+  line(br[0], br[1], br[0], cols - 1);
+
+  const shape = Array.from({ length: rows }, () => Array(cols).fill(0));
+  walk.forEach(key => {
+    const [r, c] = key.split(',').map(Number);
+    shape[r][c] = 1;
+  });
+  return shape;
+}
+
 const GRID_BY_REGION = {
   village: {
     rows: 6, cols: 7, encounterRate: 0.26,
@@ -14,13 +61,13 @@ const GRID_BY_REGION = {
     holes: [[0, 0], [1, 8], [2, 0], [3, 8], [5, 7], [5, 8]],
   },
   peak: {
-    rows: 6, cols: 10, encounterRate: 0.44,
-    holes: [[0, 0], [0, 1], [5, 9]],
+    rows: 15, cols: 15, encounterRate: 0.44,
+    buildShape: buildPeakCloverShape,
   },
 };
 
 const CELL_LABEL = {
-  start: '起', end: '终', boss: '👑',
+  start: '起', end: '终', boss: '👑', elite: '⭐',
   treasure: '📦', heal: '💊', encounter: '?', normal: '',
 };
 
@@ -77,7 +124,9 @@ function shuffleArr(arr) {
 function getGridConfig() {
   const regionId = state.currentRegion || 'village';
   const base = getRegionGridDef(regionId);
-  const shape = buildShape(base.rows, base.cols, base.holes);
+  const shape = base.buildShape
+    ? base.buildShape(base.rows, base.cols)
+    : buildShape(base.rows, base.cols, base.holes || []);
   const { start, end } = getGridStartEnd(base.rows, base.cols);
   if (!shape[0][base.cols - 1] || !shape[base.rows - 1][0]) {
     throw new Error('Grid start/end must be valid cells');
@@ -93,7 +142,7 @@ function isCellValid(key, g = state.grid) {
 
 function isFightCell(cell) {
   if (!cell) return false;
-  return cell.type === 'encounter' || cell.type === 'boss';
+  return cell.type === 'encounter' || cell.type === 'boss' || cell.type === 'elite';
 }
 
 function generateGridCells(cfg) {
@@ -121,6 +170,11 @@ function generateGridCells(cfg) {
       ? { type: 'encounter' }
       : { type: 'normal' };
   }
+  const encKeys = Object.keys(cells).filter(k => cells[k].type === 'encounter');
+  if (encKeys.length) {
+    const ek = encKeys[Math.floor(Math.random() * encKeys.length)];
+    cells[ek] = { type: 'elite' };
+  }
   return cells;
 }
 
@@ -129,7 +183,7 @@ function applyScoutReveal(g) {
   if (!hasTalent('t_scout')) return;
   const hidden = Object.keys(g.cells).filter(k => {
     const t = g.cells[k].type;
-    return (t === 'encounter' || t === 'boss') && !g.revealed.includes(k);
+    return (t === 'encounter' || t === 'boss' || t === 'elite') && !g.revealed.includes(k);
   });
   shuffleArr(hidden);
   for (let i = 0; i < 2 && hidden[i]; i++) g.revealed.push(hidden[i]);
@@ -301,6 +355,16 @@ function resetPathCollectibles() {
   }
 }
 
+function getRoutePreview() {
+  const g = state.grid;
+  if (!g || !gridPathValid()) return null;
+  const fights = getPathFightCells().length;
+  const region = getRegion();
+  const estClear = Math.floor((20 + state.level * 8) * region.goldMult);
+  const treasures = g.path.filter(k => g.cells[k]?.type === 'treasure').length;
+  return { fights, estClear, treasures, region: region.name };
+}
+
 function applyPathStartBonuses() {
   const g = state.grid;
   if (!g) return;
@@ -308,8 +372,9 @@ function applyPathStartBonuses() {
     const cell = g.cells[key];
     if (cell?.type === 'heal' && !cell.collected) {
       healPercent(0.15);
+      applyShield(0.08);
       cell.collected = true;
-      addLog('<span class="reflect">💊 路线补给：恢复 15% 生命</span>', true);
+      addLog('<span class="reflect">💊 路线补给：恢复 15% 生命 + 护盾</span>', true);
     }
   }
 }
@@ -375,6 +440,12 @@ function confirmGridPath() {
   const bossOnPath = fights.some(k => g.cells[k].type === 'boss');
   if (bossOnPath && !hasStoryFlag('first_boss')) tryShowDialog('first_boss');
   autoUsePreBattleBuff();
+  const preview = getRoutePreview();
+  if (preview) {
+    document.getElementById('gridStatus').textContent =
+      `航线锁定 · 预计 ${preview.fights} 战 · 清剿约 ${preview.estClear} 金` +
+      (preview.treasures ? ` · 宝箱 ${preview.treasures}` : '');
+  }
   addLog('—— 航线已确认，可开始挂机 ——', true);
   const score = calcRouteScore({ treasures: true, efficiency: false });
   if (score.treasureGold) {
@@ -404,11 +475,13 @@ function completeGridMap() {
   const region = getRegion();
   const score = calcRouteScore({ treasures: false, efficiency: true });
   const base = Math.floor((20 + state.level * 8) * region.goldMult);
-  const totalGold = base + score.bonusGold;
+  const streakBonus = Math.floor(base * STREAK_GOLD_BONUS * Math.min(state.mapStreak || 0, 5));
+  const totalGold = base + score.bonusGold + streakBonus;
   state.gold += totalGold;
   state.xp += applyXpGain(Math.floor((15 + state.level * 5) * region.xpMult));
   checkLevelUp(true);
   checkLevelStory(state.level);
+  onRouteComplete();
   g.mapsCleared = (g.mapsCleared || 0) + 1;
 
   if (!state.bestRoutes) state.bestRoutes = {};
@@ -419,7 +492,8 @@ function completeGridMap() {
   }
 
   addLog(`<span class="lvl">🗺 航线清剿完毕！+${totalGold} 金</span>` +
-    (score.bonusGold ? ` <span class="loot">(捷径奖 +${score.bonusGold})</span>` : ''), true);
+    (score.bonusGold ? ` <span class="loot">(捷径 +${score.bonusGold})</span>` : '') +
+    (streakBonus ? ` <span class="loot">(连胜 +${streakBonus})</span>` : ''), true);
   const summary = formatBattleStatsSummary();
   if (summary) addLog(`<span class="sys">${summary}</span>`, true);
   autoUseRouteCompleteBonus();
@@ -432,7 +506,7 @@ function completeGridMap() {
 
 function selectGridRegion(id) {
   const r = REGIONS.find(x => x.id === id);
-  if (!r || state.level < r.minLevel) return;
+  if (!r || !(typeof canAccessRegion === 'function' ? canAccessRegion(id) : state.level >= r.minLevel)) return;
   state.currentRegion = id;
   initGridMap(true);
   checkRegionStory(id);
@@ -450,29 +524,36 @@ function spawnPathMonster() {
   }
   const cellKey = spots[Math.floor(Math.random() * spots.length)];
   const isBoss = g.cells[cellKey]?.type === 'boss';
+  const isElite = g.cells[cellKey]?.type === 'elite';
   const r = getRegion();
   const bossDef = getRegionBoss(r.id);
-  const lv = Math.max(1, state.level + Math.floor(Math.random() * 3) - 1 + (isBoss ? 2 : 0));
-  const hpMult = isBoss ? 2.2 : 1;
+  const lv = Math.max(1, state.level + Math.floor(Math.random() * 3) - 1 + (isBoss ? 2 : 0) + (isElite ? 1 : 0));
+  const hpMult = isBoss ? 2.2 : (isElite ? (COMBAT?.eliteHpMult || 1.45) : 1);
   const maxHp = Math.floor((30 + lv * 15) * hpMult);
   const name = isBoss ? bossDef.name : r.monsters[Math.floor(Math.random() * r.monsters.length)];
   const dropName = isBoss ? bossDef.mob : name;
   const speedMod = MONSTER_SPEED_MOD[dropName] || MONSTER_SPEED_MOD[name] || 0;
   state.monster = applyMonsterTrait({
     uid: Date.now() + Math.random(),
-    name, level: lv, hp: maxHp, maxHp,
-    atk: Math.floor((5 + lv * 3) * (isBoss ? 1.3 : 1)),
-    def: Math.floor((2 + lv * 2) * (isBoss ? 1.2 : 1)),
+    name: isElite ? `⭐${name}` : name, level: lv, hp: maxHp, maxHp,
+    atk: Math.floor((5 + lv * 3) * (isBoss ? 1.3 : (isElite ? 1.15 : 1))),
+    def: Math.floor((2 + lv * 2) * (isBoss ? 1.2 : (isElite ? 1.1 : 1))),
     spAtk: 4 + lv * 2, spDef: 2 + lv * 2,
-    speed: Math.max(1, 5 + lv + speedMod + (isBoss ? 2 : 0)),
-    gold: Math.floor((10 + lv * 5) * r.goldMult * (isBoss ? 1.8 : 1)),
-    xp: Math.floor((15 + lv * 10) * r.xpMult * (isBoss ? 1.5 : 1)),
+    speed: Math.max(1, 5 + lv + speedMod + (isBoss ? 2 : 0) + (isElite ? 1 : 0)),
+    gold: Math.floor((10 + lv * 5) * r.goldMult * (isBoss ? 1.8 : 1) * (isElite ? (COMBAT?.eliteGoldMult || 1.35) : 1)),
+    xp: Math.floor((15 + lv * 10) * r.xpMult * (isBoss ? 1.5 : 1) * (isElite ? 1.2 : 1)),
     regionId: r.id,
     sourceCell: cellKey,
-    isBoss,
+    isBoss, isElite,
     dropName,
     bossTitle: isBoss ? bossDef.title : '',
+    shieldHp: 0,
   });
+  if (isBoss && r.id === 'ruins') state.monster.shieldHp = Math.floor(state.monster.maxHp * 0.1);
+  if (isBoss && BOSS_SKILLS[r.id]) {
+    addLog(`<span class="sys">Boss 技能：${BOSS_SKILLS[r.id].name} — ${BOSS_SKILLS[r.id].desc}</span>`, true);
+  }
+  if (isElite) addLog('<span class="sys">⭐ 精英怪：更高掉落与经验</span>', true);
   trackBattleStat('fights', 1);
   startBattleBlock(isBoss ? `👑 ${name} · ${bossDef.title}` : state.monster.name, lv);
   if (state.monster.trait) {

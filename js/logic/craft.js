@@ -104,7 +104,7 @@ function autoUsePreBattleBuff() {
 
 /** 战斗中：生命低于阈值自动回血 */
 function autoUseIdleHeal() {
-  return autoUseBestHeal(AUTO_HEAL_RATIO);
+  return autoUseBestHeal(typeof getIdleHealRatio === 'function' ? getIdleHealRatio() : AUTO_HEAL_RATIO);
 }
 
 /** 即将倒下：依次尝试所有回血药，避免中断挂机 */
@@ -135,6 +135,8 @@ function craftItem(recipeId) {
   if (!consumeMaterials(recipe.mats)) return false;
   state.gold -= recipe.gold;
   addConsumable(recipe.product);
+  state.totalCrafts = (state.totalCrafts || 0) + 1;
+  checkAchievements();
   const toast = document.getElementById('lifeToast');
   if (toast) toast.textContent = `${recipe.icon} 合成成功：${recipe.product.name} ×1（挂机时自动使用）`;
   render(); save();

@@ -111,15 +111,22 @@ function rollDrop(monster) {
   return drops;
 }
 
-function addToBag(item) {
+function addToBag(item, opts) {
+  const notify = opts && opts.notify;
   if (item.type === 'material') {
     const ex = state.bag.find(i => i.type === 'material' && i.id === item.id);
-    if (ex) { ex.count = (ex.count || 1) + 1; return ex; }
+    if (ex) {
+      ex.count = (ex.count || 1) + 1;
+      if (notify && typeof showLootNotify === 'function') showLootNotify(item);
+      return ex;
+    }
     state.bag.push({ ...item, count: 1, uid: 'mat_' + item.id });
+    if (notify && typeof showLootNotify === 'function') showLootNotify(item);
     return;
   }
   state.bag.push({ ...item, uid: item.uid || (Date.now() + Math.random()) });
   recordItemDiscovered(item);
+  if (notify && typeof showLootNotify === 'function') showLootNotify(item);
 }
 
 function getSellPrice(item) {
@@ -182,27 +189,49 @@ function addLog(html, isSystem) {
 function endBattleBlock() { currentLogBlock = null; }
 
 function dealPlayerDamage(m, s, isSpecial) {
-  const atk = isSpecial ? s.spAtk : s.atk;
+  let atk = isSpecial ? s.spAtk : s.atk;
+  const weather = REGION_WEATHER[state.currentRegion];
+  if (!isSpecial && weather?.name === '晴') atk = Math.floor(atk * 1.05);
+  if (isSpecial && weather?.name === '夜') atk = Math.floor(atk * 1.08);
   const def = isSpecial ? m.spDef : m.def;
   let dmg = Math.max(1, atk - def + Math.floor(Math.random() * 4));
+  const wb = getWeaknessBonus(m.dropName || m.name);
+  if (wb) dmg = Math.floor(dmg * (1 + wb));
+  const combo = getComboBonus();
+  if (combo > 0) dmg = Math.floor(dmg * (1 + combo));
+  if (m.shieldHp > 0) {
+    const absorbed = Math.min(m.shieldHp, dmg);
+    m.shieldHp -= absorbed;
+    dmg -= absorbed;
+    if (absorbed) addLog(`<span class="sys">🛡 护盾抵消 ${absorbed}</span>`, true);
+  }
+  if (dmg <= 0) return;
   const isCrit = Math.random() < s.critRate;
   if (isCrit) dmg = Math.max(1, Math.floor(dmg * (1 + s.critDmg)));
   m.hp -= dmg;
   trackBattleStat('damageDealt', dmg);
   if (isCrit) trackBattleStat('crits', 1);
   const tag = isSpecial ? '特攻' : '物攻';
-  if (isCrit) addLog(`<span class="crit">💥 暴击${tag}！</span>造成 <span class="dmg">${dmg}</span> 伤害`);
-  else addLog(`${tag}命中，造成 <span class="dmg">${dmg}</span> 伤害`);
+  const weakTag = wb ? ' <span class="drop">弱点</span>' : '';
+  const comboTag = combo > 0 ? ` <span class="loot">连×${state.combo}</span>` : '';
+  if (isCrit) addLog(`<span class="crit">💥 暴击${tag}！</span>${weakTag}${comboTag} 造成 <span class="dmg">${dmg}</span> 伤害`);
+  else addLog(`${tag}命中${weakTag}${comboTag}，造成 <span class="dmg">${dmg}</span> 伤害`);
+  if (m.isBoss && BOSS_SKILLS[m.regionId]?.name === '凝胶反震' && Math.random() < 0.15) {
+    const reflect = Math.max(1, Math.floor(dmg * 0.08));
+    state.currentHp = Math.max(0, (state.currentHp ?? s.maxHp) - reflect);
+    trackBattleStat('damageTaken', reflect);
+    addLog(`<span class="dmg">凝胶反震 ${reflect}</span>`);
+  }
 }
 
 function triggerBossPhaseIfNeeded(m, s) {
   if (!m.isBoss) return;
   if (!m.phase) m.phase = 1;
-  if (m.hp <= Math.floor(m.maxHp * 0.7) && !m.phase70) {
+  if (m.hp <= Math.floor(m.maxHp * (REGION_WEATHER.peak && m.regionId === 'peak' ? 0.75 : 0.7)) && !m.phase70) {
     m.phase70 = true;
     m.phase = 2;
     m.atk = Math.floor(m.atk * 1.2);
-    m.speed += 2;
+    m.speed += m.regionId === 'forest' ? 3 : 2;
     addLog('<span class="crit">👑 Boss 二阶段：狂怒，攻击与速度提升！</span>', true);
   }
   if (m.hp <= Math.floor(m.maxHp * 0.3) && !m.phase30) {
@@ -213,6 +242,12 @@ function triggerBossPhaseIfNeeded(m, s) {
     const burst = Math.max(1, Math.floor(m.spAtk * 1.25) - Math.floor(s.spDef * 0.6));
     state.currentHp = Math.max(0, (state.currentHp ?? s.maxHp) - burst);
     trackBattleStat('damageTaken', burst);
+    if (m.regionId === 'peak') {
+      const extra = Math.max(1, Math.floor(m.spAtk * 0.8) - Math.floor(s.spDef * 0.5));
+      state.currentHp = Math.max(0, (state.currentHp ?? s.maxHp) - extra);
+      trackBattleStat('damageTaken', extra);
+      addLog(`<span class="dmg">断峰剑意追加 ${extra} 特攻伤害！</span>`, true);
+    }
     addLog(`<span class="dmg">👑 Boss 三阶段：血怒爆发，造成 ${burst} 伤害并回复 ${heal} 生命！</span>`, true);
   }
 }
@@ -226,10 +261,15 @@ function applyMonsterAfterHitEffects(m, dmg, s) {
     addLog(`<span class="reflect">${m.name} 嗜血回复 ${heal} 生命</span>`);
   }
   if (trait.poisonChance && Math.random() < trait.poisonChance) {
-    const poison = Math.max(1, Math.floor(s.maxHp * 0.03));
-    state.currentHp = Math.max(0, (state.currentHp ?? s.maxHp) - poison);
-    trackBattleStat('damageTaken', poison);
-    addLog(`<span class="dmg">☠ ${m.name} 毒伤追加 ${poison}</span>`);
+    if (!state.playerStatus) state.playerStatus = {};
+    state.playerStatus.burn = Math.max(state.playerStatus.burn || 0, 2);
+    addLog(`<span class="dmg">☠ ${m.name} 毒牙，灼烧 2 回合</span>`);
+  }
+  if (trait.id === 'wolf' && Math.random() < 0.2) {
+    const extra = Math.max(1, Math.floor(dmg * 0.5));
+    state.currentHp = Math.max(0, (state.currentHp ?? s.maxHp) - extra);
+    trackBattleStat('damageTaken', extra);
+    addLog(`<span class="dmg">${m.name} 疾袭连击 ${extra}</span>`);
   }
   if (trait.rendChance && Math.random() < trait.rendChance) {
     const reduce = Math.max(1, Math.floor((state.battleDebuff?.defDrop || 0) + (1 - trait.rendMult) * 100));
@@ -244,6 +284,7 @@ function battleTick() {
   }
   const m = state.monster, s = calcStats();
   clampHp();
+  tickPlayerStatus(s);
   triggerBossPhaseIfNeeded(m, s);
   const playerFirst = isPlayerFirst(s, m);
   for (const phase of (playerFirst ? ['player', 'monster'] : ['monster', 'player'])) {
@@ -255,13 +296,18 @@ function battleTick() {
       const playerDef = state.battleDebuff?.untilMonsterUid === m.uid
         ? Math.max(1, Math.floor(s.def * 0.82))
         : s.def;
-      const dmg = useSpecial
+      let dmg = useSpecial
         ? Math.max(1, m.spAtk - s.spDef + Math.floor(Math.random() * 3))
         : Math.max(1, m.atk - playerDef + Math.floor(Math.random() * 3));
-      addLog(`${m.name} ${useSpecial ? '特攻' : '物攻'}，造成 <span class="dmg">${dmg}</span> 伤害`);
-      state.currentHp = Math.max(0, (state.currentHp ?? s.maxHp) - dmg);
-      trackBattleStat('damageTaken', dmg);
-      applyMonsterAfterHitEffects(m, dmg, s);
+      dmg = absorbShield(dmg);
+      if (dmg > 0) {
+        addLog(`${m.name} ${useSpecial ? '特攻' : '物攻'}，造成 <span class="dmg">${dmg}</span> 伤害`);
+        state.currentHp = Math.max(0, (state.currentHp ?? s.maxHp) - dmg);
+        trackBattleStat('damageTaken', dmg);
+        applyMonsterAfterHitEffects(m, dmg, s);
+      } else {
+        addLog('<span class="sys">🛡 护盾完全格挡</span>', true);
+      }
       if (hasTalent('t_reflect') && m.hp > 0) {
         const reflect = Math.max(1, Math.floor(dmg * 0.2));
         m.hp -= reflect;
@@ -281,17 +327,29 @@ function battleTick() {
       recordMonsterKill(m.dropName || m.name);
       trackBattleStat('bossKills', 1);
     }
+    onBattleWin(m.isBoss, m.regionId);
     addLog(`✔ 击败 ${m.name}！<span class="loot">+${m.gold}金 +${m.xp}经验</span>`);
+    if (typeof showFloatReward === 'function') {
+      showFloatReward(`+${m.gold} 金`, 'gold', document.getElementById('monsterSprite'));
+      showFloatReward(`+${m.xp} 经验`, 'xp', document.getElementById('playerSprite'));
+    }
     if (hasTalent('t_killheal')) { healPercent(0.08); addLog('<span class="reflect">嗜血本能回复 8% 生命</span>'); }
     tryPetDrop();
     tryDiamondDrop();
-      for (const d of rollDrop({ ...m, name: m.dropName || m.name })) { addToBag(d); addLog(`<span class="drop">📦 掉落：${d.name}</span>`); }
+      for (const d of rollDrop({ ...m, name: m.dropName || m.name })) {
+        addToBag(d, { notify: true });
+        addLog(`<span class="drop">📦 掉落：${d.name}</span>`);
+      }
     healPercent(0.2); checkLevelUp(); endBattleBlock();
     const wasBoss = m.isBoss;
     const bossRegion = m.regionId;
     state.monster = null;
     state.battleDebuff = null;
-    if (wasBoss && bossRegion) checkChapterBossDefeat(bossRegion);
+    state.playerStatus = null;
+    if (wasBoss && bossRegion) {
+      checkChapterBossDefeat(bossRegion);
+      if (typeof checkStoryChapterTasks === 'function') checkStoryChapterTasks();
+    }
     if (sourceCell) markPathCellCleared(sourceCell);
     if (state.battleOn && canStartGridBattle()) spawnMonster();
     render(); save();
@@ -303,6 +361,8 @@ function battleTick() {
       return;
     }
     addLog('<span class="dmg">你已倒下，3秒后恢复30%生命</span>');
+    state.combo = 0;
+    state.mapStreak = 0;
     clearInterval(battleTimer); state.battleOn = false;
     setTimeout(() => { state.currentHp = Math.floor(calcStats().maxHp * 0.3); addLog('—— 恢复再战 ——', true); render(); save(); }, 3000);
   }
@@ -317,6 +377,8 @@ function checkLevelUp(silent) {
     state.currentHp = calcStats().maxHp;
     if (!silent) addLog(`<span class="lvl">🎉 升级 Lv.${state.level}！生命回满</span>`);
     checkLevelStory(state.level);
+    checkAchievements();
+    if (typeof checkStoryChapterTasks === 'function') checkStoryChapterTasks();
   }
 }
 
@@ -370,7 +432,7 @@ function doLifeSkill(id) {
     return;
   }
   state.lifeCd[id] = now + cdMs;
-  addToBag({ ...skill.mat });
+  addToBag({ ...skill.mat }, { notify: true });
   const baseG = skill.gold[0] + Math.floor(Math.random() * (skill.gold[1] - skill.gold[0] + 1));
   const g = Math.floor(baseG * bonus.goldMult);
   state.gold += g;
@@ -378,6 +440,7 @@ function doLifeSkill(id) {
   state.xp += applyXpGain(xpGain);
   state.lifeSp = (state.lifeSp || 0) + 1;
   checkLevelUp(true);
+  checkAchievements();
   document.getElementById('lifeToast').textContent =
     `${skill.icon} ${skill.msg}！获得 ${skill.mat.name} ×1，+${g} 金，+${xpGain} 经验 · 生活点 +1`;
   render(); save();
@@ -409,6 +472,7 @@ function doCheckin() {
 function setActivePet(id) {
   if (!state.pets.includes(id)) return;
   state.activePet = state.activePet === id ? null : id;
+  checkAchievements();
   render(); save();
 }
 

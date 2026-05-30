@@ -22,6 +22,22 @@ const STORY_DIALOGS = {
     ],
     once: 'first_boss',
   },
+  level_8: {
+    title: '青岚初现',
+    lines: [
+      { speaker: '旁白', text: '丹田深处，一缕青焰悄然燃起——无人知晓，那是传说中的青岚焰。' },
+      { speaker: '莫伯', text: '陆燃，你身上的气息……变了。' },
+    ],
+    once: 'level_8',
+  },
+  level_15: {
+    title: '焰心微明',
+    lines: [
+      { speaker: '陆燃', text: '赵凌，当年你夺我灵根，今日我必登苍岚峰！' },
+      { speaker: '旁白', text: '青岚焰在血脉中跳动，每一次击杀都在为焰心添柴。' },
+    ],
+    once: 'level_15',
+  },
   level_5: { title: '突破', lines: [{ speaker: '旁白', text: '气段初稳，你已非当年「废体」之躯。' }], once: 'level_5' },
   level_10: { title: '试炼在望', lines: [{ speaker: '旁白', text: '苍岚峰在望，赵凌必在峰顶。' }], once: 'level_10' },
 };
@@ -157,10 +173,69 @@ function checkChapterPetGhost() {
 function checkLevelStory(level) {
   checkChapterMilestones(level);
   if (level >= 5) tryShowDialog('level_5');
+  if (level >= 8) tryShowDialog('level_8');
   if (level >= 10) tryShowDialog('level_10');
+  if (level >= 15) tryShowDialog('level_15');
+}
+
+function getCharStoryPanelData() {
+  const progress = getStoryProgress();
+  const done = hasStoryFlag('ch_peak_victory');
+  let chapterId = null;
+  if (hasStoryFlag('prologue')) {
+    for (const id of CHAPTER_ORDER) {
+      if (hasStoryFlag('ch_' + id + '_enter')) chapterId = id;
+    }
+    if (!chapterId) chapterId = 'village';
+  }
+  const region = chapterId ? STORY.regions[chapterId] : null;
+  const castByChapter = {
+    village: ['mobo', 'zhaoling', 'suqing'],
+    forest: ['zhaoling'],
+    ruins: ['moweng'],
+    peak: ['han', 'zhaoling'],
+  };
+  const cast = (chapterId ? castByChapter[chapterId] : ['suqing', 'mobo'])
+    .map(k => STORY.characters[k]).filter(Boolean);
+
+  let synopsis = STORY.meta.tagline;
+  let objective = '点击地图，规划航线，在挂机战斗中成长。';
+  if (!hasStoryFlag('prologue')) {
+    synopsis = '三年前气尽断途，赵凌当众羞辱。苏清塞来伤药，莫伯给你木剑与铜钱——丹田深处，微火初跳。';
+    objective = '阅读序章弹窗，然后开始乌石村外的修行。';
+  } else if (done) {
+    synopsis = STORY.chapters.peak.onVictory[0].text;
+    objective = '主线第一章已完成。苍岚内门选拔，敬请期待。';
+  } else if (region) {
+    synopsis = region.intro || region.blurb || synopsis;
+    objective = region.blurb || objective;
+  }
+
+  const milestones = [];
+  if (hasStoryFlag('ch_village_lv3')) milestones.push('莫伯提醒');
+  if (hasStoryFlag('ch_forest_rescue')) milestones.push('货郎获救');
+  if (hasStoryFlag('ch_ruins_pet')) milestones.push('墨翁赠礼');
+  if (hasStoryFlag('ch_peak_victory')) milestones.push('峰顶证道');
+
+  return {
+    title: progress.label,
+    chapterId,
+    synopsis,
+    objective,
+    cast,
+    milestones,
+    done,
+    rival: STORY.rivalry?.rival,
+  };
 }
 
 function getStoryProgress() {
+  if (typeof getStoryChapterTitle === 'function') {
+    const label = getStoryChapterTitle();
+    const ch = getCurrentStoryChapter?.();
+    const idx = ch ? STORY_CHAPTERS.findIndex(c => c.id === ch.id) : (state.storyChapter === 'complete' ? 4 : 0);
+    return { label, chapter: idx + 1 };
+  }
   if (!hasStoryFlag('prologue')) return { label: '序章 · 莫欺少年穷', chapter: 0 };
   for (let i = CHAPTER_ORDER.length - 1; i >= 0; i--) {
     const id = CHAPTER_ORDER[i];
@@ -174,8 +249,15 @@ function getStoryProgress() {
 }
 
 function initStoryOnLoad() {
+  if (typeof initStoryChapter === 'function') initStoryChapter();
   if (!hasStoryFlag('prologue')) {
-    setTimeout(() => tryShowDialog('prologue'), 400);
+    setTimeout(() => tryShowDialog('prologue', null, () => {
+      if (typeof initStoryChapter === 'function') {
+        state.storyChapter = 'village';
+        save();
+        if (typeof render === 'function') render();
+      }
+    }), 400);
     return;
   }
   setTimeout(() => {

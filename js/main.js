@@ -30,7 +30,7 @@ window.craftItem = craftItem;
 
 function render() {
   renderTopBar(); renderChar(); renderMap(); renderBattle();
-  renderBag(); renderShop(); renderAuction(); renderLife(); renderCheckin(); renderPet(); renderCodex(); renderCheat();
+  renderBag(); renderShop(); renderAuction(); renderLife(); renderCheckin(); renderPet(); renderCodex(); renderAchievements(); renderCheat();
 }
 
 document.getElementById('gridRegionTabs').addEventListener('click', e => {
@@ -110,10 +110,14 @@ document.getElementById('petGrid').addEventListener('click', e => {
 document.getElementById('btnCheckin').addEventListener('click', doCheckin);
 
 document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => {
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('page-' + btn.dataset.page).classList.add('active');
+  const page = btn.dataset.page;
+  if (typeof navigateToPage === 'function') navigateToPage(page);
+  else {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('page-' + page).classList.add('active');
+  }
 }));
 
 document.querySelectorAll('.shop-tab').forEach(tab => tab.addEventListener('click', () => { shopTab = tab.dataset.shop; renderShop(); }));
@@ -150,7 +154,7 @@ document.getElementById('toggleBattle').addEventListener('click', () => {
     autoUsePreBattleBuff();
     if (!state.monster) spawnMonster();
     else if (!currentLogBlock) startBattleBlock(state.monster.name, state.monster.level);
-    battleTimer = setInterval(battleTick, 900);
+    battleTimer = setInterval(battleTick, getBattleInterval());
     addLog('—— 沿路线挂机 ——', true);
   } else {
     clearInterval(battleTimer);
@@ -178,6 +182,20 @@ function initGameBranding() {
 
 initGameBranding();
 initStoryOnLoad();
+if (typeof initStoryChapter === 'function') initStoryChapter();
+if (typeof canAccessRegion === 'function' && typeof STORY_CHAPTER_BY_ID !== 'undefined') {
+  const ch = STORY_CHAPTER_BY_ID[state.storyChapter];
+  if (ch?.regionId && canAccessRegion(ch.regionId) && state.currentRegion !== ch.regionId) {
+    const phase = state.grid?.phase;
+    if (!phase || phase === 'draw') {
+      state.currentRegion = ch.regionId;
+      initGridMap(true);
+    }
+  }
+}
+rollDailyBounty();
+checkOfflineSummary();
+checkAchievements();
 render();
 
 saveTimer = setInterval(save, 3000);

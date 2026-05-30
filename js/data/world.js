@@ -29,7 +29,7 @@ const REGIONS = [
   { id: 'ruins', name: '古代遗迹', minLevel: 6, goldMult: 1.5, xpMult: 1.3,
     desc: '青岚剑宗旧战场。墨翁残魂在此等候，青岚焰火种即将苏醒。',
     monsters: ['骷髅', '山贼', '哥布林'] },
-  { id: 'peak', name: '苍岚峰', minLevel: 10, goldMult: 2, xpMult: 1.6,
+  { id: 'peak', name: '苍岚峰', minLevel: 8, goldMult: 2, xpMult: 1.6,
     desc: '剑宗试炼之峰。断峰剑意藏于云间，赵凌已在峰顶等最后一战。',
     monsters: ['山贼', '毒蜘蛛', '骷髅', '野狼'] },
 ];

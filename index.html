@@ -6,8 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>古海大陆</title>
   <link rel="stylesheet" href="css/game.css">
+  <link rel="stylesheet" href="css/theme-v31.css">
 </head>
-<body class="pixel-theme">
+<body class="pixel-theme v31-theme">
   <nav class="sidebar">
     <div class="logo">
       <img src="assets/img/ui/logo.png" alt="" class="pixel-art logo-icon" onerror="this.style.display='none'">
@@ -20,6 +21,7 @@
     <button class="nav-btn active" data-page="char"><img src="assets/img/icons/nav/char.svg" alt="" class="nav-icon"><span>角色</span></button>
     <button class="nav-btn" data-page="map"><img src="assets/img/icons/nav/map.svg" alt="" class="nav-icon"><span>地图</span></button>
     <button class="nav-btn" data-page="codex"><img src="assets/img/icons/nav/codex.svg" alt="" class="nav-icon"><span>图鉴</span></button>
+    <button class="nav-btn" data-page="achievements"><img src="assets/img/icons/nav/checkin.svg" alt="" class="nav-icon"><span>成就</span></button>
     <button class="nav-btn" data-page="bag"><img src="assets/img/icons/nav/bag.svg" alt="" class="nav-icon"><span>背包</span></button>
     <button class="nav-btn" data-page="shop"><img src="assets/img/icons/nav/shop.svg" alt="" class="nav-icon"><span>商店</span></button>
     <button class="nav-btn" data-page="auction"><img src="assets/img/icons/nav/auction.svg" alt="" class="nav-icon"><span>拍卖会</span></button>
@@ -33,51 +35,87 @@
     <div class="top-bar" id="topBar"></div>
 
     <div class="page active" id="page-char">
-      <div class="card">
-        <h2>角色信息</h2>
-        <div id="charProfile" class="char-profile"></div>
-        <div class="stats-grid" id="charStats"></div>
-      </div>
-      <div class="card">
-        <h2>装备栏位</h2>
-        <div class="equip-slots" id="equipSlots"></div>
-        <div id="slotPicker" class="slot-picker" style="display:none">
-          <h3 id="slotPickerTitle">从背包选择</h3>
-          <ul class="picker-list" id="slotPickerList"></ul>
+      <div class="char-page-layout">
+        <div class="char-page-main">
+          <div class="char-page-wrap">
+            <div class="card char-hero-card">
+              <h2>角色信息</h2>
+              <div id="charProfile" class="char-profile"></div>
+              <h2 class="char-subhead">六维属性</h2>
+              <div class="stats-grid stats-compact" id="charStats"></div>
+            </div>
+            <div class="card dashboard-card">
+              <h2>修行面板</h2>
+              <div id="charDashboard" class="char-dashboard"></div>
+            </div>
+            <div class="card">
+              <h2>装备栏位</h2>
+              <div class="equip-slots" id="equipSlots"></div>
+              <div id="slotPicker" class="slot-picker" style="display:none">
+                <h3 id="slotPickerTitle">从背包选择</h3>
+                <ul class="picker-list" id="slotPickerList"></ul>
+              </div>
+              <p class="footer-tip">套装效果请见图鉴 · 装备页</p>
+            </div>
+            <div class="card">
+              <h2>武功栏</h2>
+              <ul class="skill-list" id="skillDisplay"></ul>
+            </div>
+            <div class="card">
+              <h2>天赋</h2>
+              <ul class="skill-list" id="talentDisplay"></ul>
+              <p class="footer-tip">花金币觉醒天赋，被动永久生效（最多全选 5 个）</p>
+            </div>
+          </div>
         </div>
-        <p class="footer-tip">套装效果请见图鉴 · 装备页</p>
-      </div>
-      <div class="card">
-        <h2>武功栏</h2>
-        <ul class="skill-list" id="skillDisplay"></ul>
-      </div>
-      <div class="card">
-        <h2>天赋</h2>
-        <ul class="skill-list" id="talentDisplay"></ul>
-        <p class="footer-tip">花金币觉醒天赋，被动永久生效（最多全选 5 个）</p>
+        <aside class="char-story-rail px-panel">
+          <h2 class="story-rail-title">主线剧情</h2>
+          <div id="charStoryPanel" class="char-story-panel"></div>
+        </aside>
       </div>
     </div>
 
     <div class="page" id="page-map">
-      <div class="card map-card">
-        <h2>连线地图</h2>
-        <p class="footer-tip">■ 黑格→蓝格 · 👑红Boss · 📦紫箱 · 💊绿补给 · 左键拖线 · 确认后弹出战斗 · 药品全自动</p>
-        <div class="grid-region-tabs" id="gridRegionTabs"></div>
-        <p class="grid-status" id="gridStatus">左键长按拖线，从黑格连到蓝格</p>
-        <div class="path-grid-wrap">
-          <div class="path-grid" id="pathGrid"></div>
+      <div class="stage-page">
+        <header class="stage-head">
+          <div>
+            <h1 class="stage-title">航线地图</h1>
+            <p class="stage-sub footer-tip">黑格连蓝格 · 👑Boss · ⭐精英 · 左键拖线 · 确认后挂机</p>
+          </div>
+          <div id="regionWeather" class="region-weather stage-weather"></div>
+        </header>
+        <div class="stage-layout">
+          <aside class="stage-rail">
+            <div class="px-panel">
+              <h3 class="px-panel-title">游历地区</h3>
+              <div class="grid-region-tabs" id="gridRegionTabs"></div>
+            </div>
+            <div class="px-panel stage-side-info">
+              <h3 class="px-panel-title">地区情报</h3>
+              <div id="gridMapInfo" class="stage-region-info"></div>
+            </div>
+          </aside>
+          <section class="px-panel stage-arena map-arena">
+            <div class="arena-head">
+              <p class="grid-status" id="gridStatus">左键长按拖线，从黑格连到蓝格</p>
+            </div>
+            <div class="path-grid-wrap stage-grid-wrap">
+              <div class="path-grid stage-grid" id="pathGrid"></div>
+            </div>
+            <div class="grid-actions arena-actions">
+              <button type="button" class="btn btn-sm btn-outline" id="gridClear">清除连线</button>
+              <button type="button" class="btn btn-sm btn-primary" id="gridGo">确认路线</button>
+            </div>
+            <div class="route-share">
+              <input type="text" id="routeShareInput" placeholder="路线分享码" class="route-share-input">
+              <button type="button" class="btn btn-sm btn-outline" id="routeExport">复制路线</button>
+              <button type="button" class="btn btn-sm btn-outline" id="routeImport">导入路线</button>
+            </div>
+          </section>
         </div>
-        <div class="grid-actions">
-          <button type="button" class="btn btn-sm btn-outline" id="gridClear">清除连线</button>
-          <button type="button" class="btn btn-sm" id="gridGo">确认路线</button>
+        <div class="px-panel stage-gallery-wrap">
+          <div id="monsterGallery" class="monster-gallery"></div>
         </div>
-        <div class="route-share">
-          <input type="text" id="routeShareInput" placeholder="路线分享码" class="route-share-input">
-          <button type="button" class="btn btn-sm btn-outline" id="routeExport">复制路线</button>
-          <button type="button" class="btn btn-sm btn-outline" id="routeImport">导入路线</button>
-        </div>
-        <p class="footer-tip" id="gridMapInfo"></p>
-        <div id="monsterGallery" class="monster-gallery"></div>
       </div>
     </div>
 
@@ -90,6 +128,18 @@
         <p class="footer-tip" id="codexTip">击败足够数量解锁 lore 与弱点。瞭望术天赋可识破地图上的怪格。</p>
         <ul class="codex-list" id="codexList"></ul>
         <div id="equipCodexSets" style="display:none"></div>
+      </div>
+    </div>
+
+    <div class="page" id="page-achievements">
+      <div class="card bounty-card">
+        <h2>每日悬赏</h2>
+        <div id="bountyPanel" class="bounty-panel"></div>
+      </div>
+      <div class="card">
+        <h2>成就殿堂</h2>
+        <p class="footer-tip" id="achSummary">—</p>
+        <ul class="ach-list" id="achievementsList"></ul>
       </div>
     </div>
 
@@ -166,7 +216,7 @@
     <div class="page" id="page-pet">
       <div class="card">
         <h2>宠物</h2>
-        <p class="footer-tip" style="margin-bottom:12px">宠物暂无属性加成，仅作陪伴展示。地图战斗有概率捕获。</p>
+        <p class="footer-tip" style="margin-bottom:12px">宠物提供被动属性加成。地图战斗有概率捕获，设为跟随后生效。</p>
         <div class="pet-grid" id="petGrid"></div>
       </div>
     </div>
@@ -215,40 +265,49 @@
   </div>
 
   <div class="battle-modal" id="battleModal">
-    <div class="battle-modal-panel">
-      <div class="battle-modal-head">
+    <div class="battle-modal-panel px-panel battle-stage">
+      <div class="battle-stage-head">
         <h2 id="mapBattleTitle">挂机战斗</h2>
         <button type="button" class="btn btn-sm btn-outline" id="battleModalClose">关闭</button>
       </div>
-      <div class="battle-units">
-        <div class="unit-box player">
-          <div class="label">你</div>
-          <div class="sprite-slot" id="playerSprite"></div>
-          <div class="name" id="playerName">—</div>
-          <div class="unit-stats" id="playerStats">—</div>
-          <div id="playerTurnBadge" class="turn-badge" style="display:none"></div>
-          <div class="unit-hp-bar"><div class="bar-fill hp" id="playerHpBar" style="width:100%"></div></div>
-          <div id="playerHpText">0 / 0</div>
+      <div class="battle-stage-body">
+        <div class="px-panel-inset battle-arena">
+          <div class="battle-units">
+            <div class="unit-box player">
+              <div class="label">你</div>
+              <div class="sprite-slot" id="playerSprite"></div>
+              <div class="name" id="playerName">—</div>
+              <div class="unit-stats" id="playerStats">—</div>
+              <div id="playerTurnBadge" class="turn-badge" style="display:none"></div>
+              <div class="unit-hp-bar"><div class="bar-fill hp" id="playerHpBar" style="width:100%"></div></div>
+              <div id="playerHpText">0 / 0</div>
+            </div>
+            <div class="unit-box enemy">
+              <div class="label">敌人</div>
+              <div class="sprite-slot" id="monsterSprite"></div>
+              <div class="name" id="monsterName">—</div>
+              <div class="unit-stats" id="monsterStats">—</div>
+              <div id="monsterTurnBadge" class="turn-badge" style="display:none"></div>
+              <div class="unit-hp-bar"><div class="bar-fill hp" id="monsterHpBar" style="width:100%"></div></div>
+              <div id="monsterHpText">0 / 0</div>
+            </div>
+          </div>
         </div>
-        <div class="unit-box enemy">
-          <div class="label">敌人</div>
-          <div class="sprite-slot" id="monsterSprite"></div>
-          <div class="name" id="monsterName">—</div>
-          <div class="unit-stats" id="monsterStats">—</div>
-          <div id="monsterTurnBadge" class="turn-badge" style="display:none"></div>
-          <div class="unit-hp-bar"><div class="bar-fill hp" id="monsterHpBar" style="width:100%"></div></div>
-          <div id="monsterHpText">0 / 0</div>
+        <div class="battle-toolbar" id="battleToolbar"></div>
+        <button class="btn btn-primary" id="toggleBattle">开始挂机</button>
+        <div class="battle-stats-panel" id="battleStatsPanel"></div>
+        <div class="battle-log-wrap">
+          <h3>战斗日志</h3>
+          <div class="log" id="battleLog"></div>
         </div>
-      </div>
-      <button class="btn" id="toggleBattle">开始挂机</button>
-      <div class="battle-log-wrap">
-        <h3>战斗日志</h3>
-        <div class="log" id="battleLog"></div>
       </div>
     </div>
   </div>
 
+  <div id="lootStack" class="loot-stack" aria-live="polite"></div>
+
   <script src="js/data/config.js"></script>
+  <script src="js/data/meta.js"></script>
   <script src="js/data/world.js"></script>
   <script src="js/data/life-tree.js"></script>
   <script src="js/data/craft.js"></script>
@@ -258,14 +317,18 @@
   <script src="js/data/equip-codex.js"></script>
   <script src="js/data/auction.js"></script>
   <script src="js/data/story.js"></script>
+  <script src="js/data/story-chapters.js"></script>
   <script src="js/data/codex.js"></script>
   <script src="js/state.js"></script>
   <script src="js/logic/dialog.js"></script>
+  <script src="js/logic/story-quest.js"></script>
   <script src="js/logic/craft.js"></script>
+  <script src="js/logic/meta.js"></script>
   <script src="js/logic.js"></script>
   <script src="js/logic/grid.js"></script>
   <script src="js/logic/save-io.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/ui-effects.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

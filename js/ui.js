@@ -17,16 +17,22 @@ function renderTopBar() {
   const xpPct = (state.xp / state.xpNeed * 100).toFixed(0);
   const region = getRegion();
   const pet = state.activePet ? PETS.find(p => p.id === state.activePet) : null;
+  const weather = REGION_WEATHER[state.currentRegion] || REGION_WEATHER.village;
+  const combo = state.combo || 0;
+  const comboTag = combo > 0 ? `<span class="combo-badge" title="连击加成">🔥×${combo}</span>` : '';
   document.getElementById('topBar').innerHTML = `
     <span><b>${esc(state.name)}</b> · Lv.${state.level}</span>
     <span class="combat-power" title="综合战力">⚔ ${power}</span>
     <span class="spirit-root-badge" title="${esc(root.desc)}">🌱 ${root.name}</span>
+    <span class="weather-badge" title="${esc(weather.tip)}">${weather.icon} ${weather.name}</span>
     <span style="color:var(--text-muted)">📍 ${region.name}</span>
+    ${comboTag}
     ${pet ? `<span title="${esc(pet.name)}">${pet.icon}</span>` : ''}
-    <div class="bar-wrap">HP <div class="bar"><div class="bar-fill hp" style="width:${hpPct}%"></div></div> ${state.currentHp}/${s.maxHp}</div>
-    <div class="bar-wrap">XP <div class="bar"><div class="bar-fill xp" style="width:${xpPct}%"></div></div> ${state.xp}/${state.xpNeed}</div>
-    <span class="gold">💰 ${state.gold}</span>
-    <span class="diamond">💎 ${state.diamonds || 0}</span>`;
+    <div class="bar-wrap">HP <div class="bar"><div class="bar-fill hp" style="width:${hpPct}%"></div></div> <span id="topHp" class="stat-num">${state.currentHp}</span>/${s.maxHp}</div>
+    <div class="bar-wrap">XP <div class="bar"><div class="bar-fill xp" style="width:${xpPct}%"></div></div> <span id="topXp" class="stat-num">${state.xp}/${state.xpNeed}</span></div>
+    <span class="gold">💰 <span id="topGold" class="stat-num">${state.gold}</span></span>
+    <span class="diamond">💎 <span id="topDiamond" class="stat-num">${state.diamonds || 0}</span></span>`;
+  if (typeof syncTopBarNumbers === 'function') syncTopBarNumbers();
 }
 
 function buildPathGridHtml(g, regionBoss) {
@@ -53,6 +59,7 @@ function buildPathGridHtml(g, regionBoss) {
       if (ct === 'start') cls += ' cell-start';
       else if (ct === 'end') cls += ' cell-end';
       else if (ct === 'boss') cls += ' cell-boss';
+      else if (ct === 'elite') cls += ' cell-elite';
       else if (ct === 'treasure') cls += ' cell-treasure';
       else if (ct === 'heal') cls += ' cell-heal';
       if (onPath && !isStart && !isEnd) {
@@ -64,10 +71,11 @@ function buildPathGridHtml(g, regionBoss) {
 
       let label = CELL_LABEL[ct] || '';
       if (ct === 'boss') label = '👑';
+      if (ct === 'elite') label = '⭐';
       if (g.phase === 'ready' && clearedCell && isFight) label = '✓';
-      else if (g.phase === 'ready' && isFight && onPath && !clearedCell) label = ct === 'boss' ? '👑' : '?';
+      else if (g.phase === 'ready' && isFight && onPath && !clearedCell) label = ct === 'boss' ? '👑' : (ct === 'elite' ? '⭐' : '?');
       else if (onPath && !isStart && !isEnd && g.phase === 'draw' && !label) label = '·';
-      else if (g.phase === 'draw' && revealed.has(key) && (ct === 'encounter' || ct === 'boss')) label = ct === 'boss' ? '👑' : '?';
+      else if (g.phase === 'draw' && revealed.has(key) && (ct === 'encounter' || ct === 'boss' || ct === 'elite')) label = ct === 'boss' ? '👑' : (ct === 'elite' ? '⭐' : '?');
 
       const title = ct === 'boss' ? `Boss：${regionBoss.name}` : ct;
       html += `<button type="button" class="${cls}" data-r="${r}" data-c="${c}" title="${title}">${label}</button>`;
@@ -101,8 +109,9 @@ function renderMapGridOnly() {
   if (!g?.cells) return;
   const regionBoss = getRegionBoss(state.currentRegion);
   const gridEl = document.getElementById('pathGrid');
-  if (gridEl.style.gridTemplateColumns !== `repeat(${g.cols}, 28px)`) {
-    gridEl.style.gridTemplateColumns = `repeat(${g.cols}, 28px)`;
+  const cellPx = gridEl.classList.contains('stage-grid') ? 32 : 28;
+  if (gridEl.style.gridTemplateColumns !== `repeat(${g.cols}, ${cellPx}px)`) {
+    gridEl.style.gridTemplateColumns = `repeat(${g.cols}, ${cellPx}px)`;
   }
   gridEl.innerHTML = buildPathGridHtml(g, regionBoss);
   updateMapStatusLine();
@@ -115,7 +124,7 @@ function renderMap() {
   const regionBoss = getRegionBoss(region.id);
 
   document.getElementById('gridRegionTabs').innerHTML = REGIONS.map(r => {
-    const locked = state.level < r.minLevel;
+    const locked = typeof canAccessRegion === 'function' ? !canAccessRegion(r.id) : state.level < r.minLevel;
     const active = r.id === state.currentRegion;
     const disabled = locked || (g.phase === 'ready' && state.battleOn);
     return `<button type="button" class="grid-region-tab${active ? ' active' : ''}${locked ? ' locked' : ''}" data-region="${r.id}"${disabled ? ' disabled' : ''}>${r.name}</button>`;
@@ -131,6 +140,13 @@ function renderMap() {
     <br><span class="footer-tip">本地区经验倍率 ×${region.xpMult}</span>`;
 
   document.getElementById('mapBattleTitle').textContent = `挂机战斗 · ${region.name}`;
+
+  const weather = REGION_WEATHER[region.id] || REGION_WEATHER.village;
+  const wEl = document.getElementById('regionWeather');
+  if (wEl) {
+    wEl.innerHTML = `<span class="weather-icon">${weather.icon}</span>
+      <div><b>天时 · ${weather.name}</b><p>${esc(weather.tip)}</p></div>`;
+  }
 
   const gallery = document.getElementById('monsterGallery');
   if (gallery) {
@@ -174,13 +190,50 @@ function renderPet() {
     const owned = state.pets.includes(p.id);
     const isActive = state.activePet === p.id;
     const art = owned ? petArt(p.id) : '';
+    const pb = PET_BONUSES[p.id];
+    const bonusText = pb ? `跟随加成：${pb.desc}` : '';
     return `<div class="pet-card${owned ? '' : ' locked'}${isActive ? ' active' : ''}">
       <div class="pet-icon">${art ? pixelImg(art, p.name, 'pet-sprite') : (owned ? p.icon : '❓')}</div>
       <div class="pet-name">${owned ? p.name : '???'}</div>
       <span class="badge ${p.rarity}">${p.rarity}</span>
-      <p class="item-desc" style="margin:8px 0">${owned ? p.desc : '地图战斗有概率捕获'}</p>
+      <p class="item-desc" style="margin:8px 0">${owned ? (bonusText || p.desc) : '地图战斗有概率捕获'}</p>
       ${owned ? `<button type="button" class="btn btn-sm" data-pet="${p.id}">${isActive ? '取消跟随' : '设为跟随'}</button>` : ''}
     </div>`;
+  }).join('');
+}
+
+function renderAchievements() {
+  rollDailyBounty();
+  const b = state.bounty;
+  const bountyEl = document.getElementById('bountyPanel');
+  if (bountyEl && b) {
+    const done = b.progress >= b.target;
+    const region = REGIONS.find(r => r.id === b.regionId);
+    bountyEl.innerHTML = `
+      <p class="bounty-desc">今日目标 · ${region?.name || ''} · ${b.label} ${b.progress}/${b.target}</p>
+      <p class="item-desc">奖励 ${b.gold} 金 + ${b.xp} 经验</p>
+      <button type="button" class="btn btn-sm" onclick="claimBounty()" ${b.claimed ? 'disabled' : (!done ? 'disabled' : '')}>${b.claimed ? '已领取' : (done ? '领取悬赏' : '进行中')}</button>`;
+  }
+  const listEl = document.getElementById('achievementsList');
+  const sumEl = document.getElementById('achSummary');
+  if (!listEl) return;
+  const unlocked = Object.keys(state.achievements || {}).length;
+  if (sumEl) sumEl.textContent = `已解锁 ${unlocked} / ${ACHIEVEMENTS.length} · 完成成就即时发放奖励`;
+  listEl.innerHTML = ACHIEVEMENTS.map(a => {
+    const got = !!state.achievements?.[a.id];
+    const rw = [];
+    if (a.reward.gold) rw.push(`${a.reward.gold}金`);
+    if (a.reward.diamonds) rw.push(`${a.reward.diamonds}💎`);
+    if (a.reward.lifeSp) rw.push(`${a.reward.lifeSp}生活点`);
+    return `<li class="ach-item${got ? ' unlocked' : ''}">
+      <div class="ach-icon">${got ? '🏆' : '🔒'}</div>
+      <div class="ach-info">
+        <b>${esc(a.name)}</b>
+        <span class="badge ${got ? 'epic' : 'common'}">${got ? '已达成' : '未达成'}</span>
+        <p>${esc(a.desc)}</p>
+        <p class="footer-tip">奖励：${rw.join(' · ') || '—'}</p>
+      </div>
+    </li>`;
   }).join('');
 }
 
@@ -205,19 +258,132 @@ function renderEquipCodexSets() {
     <p class="footer-tip">集齐同套装四件（头饰·衣甲·护腿·战靴）激活效果；进度随当前装备更新</p>`;
 }
 
+function renderCharStory() {
+  const el = document.getElementById('charStoryPanel');
+  if (!el) return;
+  if (typeof initStoryChapter === 'function') initStoryChapter();
+
+  if (state.storyChapter === 'prologue' || !hasStoryFlag('prologue')) {
+    el.innerHTML = `
+      <div class="story-chapter-badge">序章 · 莫欺少年穷</div>
+      <p class="story-epigraph">${esc(STORY.meta.tagline)}</p>
+      <div class="novel-reader px-panel-inset">
+        ${STORY.prologue.lines.map(l =>
+          `<p class="novel-p"><span class="novel-speaker">${esc(l.speaker)}</span>${esc(l.text)}</p>`
+        ).join('')}
+      </div>
+      <div class="chapter-tasks">
+        <div class="story-section-label">序章任务</div>
+        <p class="footer-tip">关闭弹窗序章后，第一章正文将在此显示。</p>
+      </div>`;
+    return;
+  }
+
+  if (state.storyChapter === 'complete') {
+    const recap = getCompletedChapterRecap();
+    el.innerHTML = `
+      <div class="story-chapter-badge">主线完成 · 苍岚新秀</div>
+      <div class="novel-reader px-panel-inset">
+        <p class="novel-p">四章走完，青岚焰冲天。韩执事的选拔令仍在风中，而你已望见更远的路。</p>
+        <p class="novel-p">内门、血煞帮余孽、青岚焰真形……古海大陆的故事，才刚刚开始。</p>
+      </div>
+      <div class="story-section">
+        <div class="story-section-label">已完结章节</div>
+        ${recap.map(ch => `<div class="recap-item"><b>${esc(ch.title)}</b> ✓</div>`).join('')}
+      </div>`;
+    return;
+  }
+
+  const ch = getCurrentStoryChapter();
+  if (!ch) return;
+
+  const allDone = isCurrentChapterComplete();
+  const tasksHtml = ch.tasks.map(t => {
+    const prog = getChapterTaskProgress(t);
+    const done = isChapterTaskDone(t);
+    return `<li class="chapter-task${done ? ' done' : ''}">
+      <span class="task-check">${done ? '✓' : '○'}</span>
+      <span class="task-label">${esc(t.label)}</span>
+      <span class="task-prog">${Math.min(prog, t.target)}/${t.target}</span>
+    </li>`;
+  }).join('');
+
+  const novelHtml = ch.novel.map(p => `<p class="novel-p">${esc(p)}</p>`).join('');
+
+  const recap = getCompletedChapterRecap();
+  const recapHtml = recap.length
+    ? `<details class="story-recap"><summary>前情提要（${recap.length} 章）</summary>
+        ${recap.map(c => `<p class="recap-line"><b>${esc(c.title)}</b> — ${esc(c.novel[c.novel.length - 1] || '')}</p>`).join('')}
+       </details>`
+    : '';
+
+  const rw = ch.rewards || {};
+  const rwTxt = [
+    rw.gold ? `${rw.gold} 金` : '',
+    rw.xp ? `${rw.xp} 经验` : '',
+    rw.diamonds ? `${rw.diamonds} 💎` : '',
+  ].filter(Boolean).join(' · ');
+
+  el.innerHTML = `
+    <div class="story-chapter-badge">${esc(ch.title)}</div>
+    <p class="story-epigraph">${esc(STORY.meta.tagline)}</p>
+    ${recapHtml}
+    <div class="novel-reader px-panel-inset">${novelHtml}</div>
+    <div class="chapter-tasks">
+      <div class="story-section-label">本章任务 ${allDone ? '· 已完成' : ''}</div>
+      <ul class="chapter-task-list">${tasksHtml}</ul>
+      ${allDone ? `
+        <button type="button" class="btn btn-primary btn-next-chapter" onclick="advanceStoryChapter()">
+          ${ch.nextId ? '进入下一章 →' : '完结主线'}
+        </button>
+        <p class="footer-tip">领取本章奖励：${rwTxt || '—'}</p>
+      ` : '<p class="footer-tip">完成全部任务后可进入下一章</p>'}
+    </div>`;
+}
+
+function renderCharDashboard() {
+  const el = document.getElementById('charDashboard');
+  if (!el) return;
+  const qing = getQinglanStage();
+  const kills = state.totalBossKills || 0;
+  const nextSt = QINGLAN_STAGES.find(s => s.need > kills);
+  let qPct = 100;
+  if (nextSt) qPct = Math.floor((kills - qing.need) / (nextSt.need - qing.need) * 100);
+  const achCount = Object.keys(state.achievements || {}).length;
+  el.innerHTML = `
+    <div class="dash-grid dash-compact">
+      <div class="dash-item qinglan-item">
+        <div class="dash-row-head">
+          <span class="dash-label">青岚焰 · ${qing.name}</span>
+          <span class="dash-mini">Boss ${state.totalBossKills || 0}</span>
+        </div>
+        <div class="qinglan-bar"><div class="qinglan-fill" style="width:${Math.min(100, qPct)}%"></div></div>
+      </div>
+      <div class="dash-item"><div class="dash-label">航线连胜</div><div class="dash-value">${state.mapStreak || 0}</div></div>
+      <div class="dash-item"><div class="dash-label">最高连击</div><div class="dash-value">${state.maxCombo || 0}</div></div>
+      <div class="dash-item"><div class="dash-label">累计击杀</div><div class="dash-value">${state.totalKills || 0}</div></div>
+      <div class="dash-item"><div class="dash-label">成就</div><div class="dash-value">${achCount}<span class="dash-of">/${ACHIEVEMENTS.length}</span></div></div>
+    </div>`;
+}
+
 function renderChar() {
   const s = calcStats();
   const power = calcCombatPower();
   const root = getSpiritRoot();
-  const story = getStoryProgress();
+  renderCharDashboard();
+  renderCharStory();
   document.getElementById('charProfile').innerHTML = `
-    <div class="char-name">${esc(state.name)}</div>
-    <div class="char-title">${esc(state.title)}</div>
+    <div class="char-head">
+      <div>
+        <div class="char-name">${esc(state.name)}</div>
+        <div class="char-title">${esc(state.title)}</div>
+      </div>
+      <div class="combat-power-box">战力 <span class="combat-power-lg">${power}</span></div>
+    </div>
     <div class="char-bio">${esc(state.bio || '暂无简介')}</div>
-    <div class="story-progress">📖 主线：${esc(story.label)}</div>
-    <div class="spirit-root-box"><span class="spirit-root-label">灵根</span> <b>${root.name}</b>
-      <span class="footer-tip">${esc(root.desc)}</span></div>
-    <div class="combat-power-box">战力 <span class="combat-power-lg">${power}</span></div>`;
+    <div class="char-meta-row">
+      <div class="spirit-root-chip" title="${esc(root.desc)}">🌱 ${root.name}</div>
+    </div>`;
   document.getElementById('charStats').innerHTML = `
     <div class="stat-item"><b>HP</b><span>${state.currentHp}/${s.maxHp}</span></div>
     <div class="stat-item"><b>物攻</b><span>${s.atk}</span></div>
@@ -275,7 +441,39 @@ function renderSlot(slot, isSet) {
     </div></div>`;
 }
 
+function renderBattleToolbar() {
+  const el = document.getElementById('battleToolbar');
+  if (!el) return;
+  const spd = state.battleSpeed || 1;
+  const mode = state.idleMode || 'balanced';
+  el.innerHTML = `
+    <div class="toolbar-group">
+      <span class="toolbar-label">战斗速度</span>
+      ${Object.keys(BATTLE_SPEEDS).map(k => `<button type="button" class="btn btn-sm${+k === spd ? '' : ' btn-outline'}" onclick="setBattleSpeed(${k})">${k}×</button>`).join('')}
+    </div>
+    <div class="toolbar-group">
+      <span class="toolbar-label">用药策略</span>
+      ${Object.values(IDLE_MODES).map(m => `<button type="button" class="btn btn-sm${m.id === mode ? '' : ' btn-outline'}" onclick="setIdleMode('${m.id}')" title="${esc(m.desc)}">${m.name}</button>`).join('')}
+    </div>`;
+}
+
+function renderBattleStatsPanel() {
+  const el = document.getElementById('battleStatsPanel');
+  if (!el) return;
+  const st = state.battleStats;
+  const ps = state.playerStatus;
+  const shield = ps?.shieldHp ? ` · 护盾 ${ps.shieldHp}` : '';
+  const burn = ps?.burn ? ` · 灼烧 ${ps.burn}回合` : '';
+  if (!st?.fights && !state.battleOn) {
+    el.innerHTML = '<p class="footer-tip">开始挂机后显示本航线战斗统计</p>';
+    return;
+  }
+  el.innerHTML = `<p class="battle-stats-line">${formatBattleStatsSummary() || '暂无数据'}${shield}${burn}</p>`;
+}
+
 function renderBattle() {
+  renderBattleToolbar();
+  renderBattleStatsPanel();
   const btn = document.getElementById('toggleBattle');
   const canBattle = canStartGridBattle();
   btn.textContent = state.battleOn ? '停止挂机' : '开始挂机';
@@ -287,7 +485,8 @@ function renderBattle() {
   document.getElementById('playerName').textContent = state.name;
   const power = calcCombatPower();
   const debuffTag = state.battleDebuff ? ' · 破甲中' : '';
-  document.getElementById('playerStats').textContent = `战力${power} · 物攻${s.atk} 物防${s.def} 速度${s.speed}${debuffTag}`;
+  const shieldTag = state.playerStatus?.shieldHp ? ` · 盾${state.playerStatus.shieldHp}` : '';
+  document.getElementById('playerStats').textContent = `战力${power} · 物攻${s.atk} 物防${s.def} 速度${s.speed}${debuffTag}${shieldTag}`;
   document.getElementById('playerHpBar').style.width = hpPct + '%';
   document.getElementById('playerHpText').textContent = `${state.currentHp} / ${s.maxHp}`;
 
