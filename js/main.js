@@ -19,6 +19,8 @@ window.doLifeSkill = doLifeSkill;
 window.selectRegion = selectRegion;
 
 window.setActivePet = setActivePet;
+window.setActiveBattlePet = setActiveBattlePet;
+window.setActiveLifePet = setActiveLifePet;
 
 window.buyAuctionLot = buyAuctionLot;
 
@@ -104,7 +106,9 @@ document.getElementById('lifeGrid').addEventListener('click', e => {
 
 document.getElementById('petGrid').addEventListener('click', e => {
   const btn = e.target.closest('button[data-pet]');
-  if (btn) setActivePet(btn.dataset.pet);
+  if (!btn) return;
+  if (btn.dataset.petType === 'life') setActiveLifePet(btn.dataset.pet);
+  else setActiveBattlePet(btn.dataset.pet);
 });
 
 document.getElementById('btnCheckin').addEventListener('click', doCheckin);
@@ -142,6 +146,17 @@ document.getElementById('cheatSetSpiritRoot').addEventListener('click', () => {
     render(); save();
   }
 });
+
+document.getElementById('openFeedback')?.addEventListener('click', openFeedbackModal);
+document.getElementById('feedbackSubmit')?.addEventListener('click', submitFeedback);
+document.getElementById('feedbackCopy')?.addEventListener('click', copyFeedbackOnly);
+document.getElementById('feedbackModal')?.addEventListener('click', e => {
+  if (e.target.id === 'feedbackModal') closeFeedbackModal();
+});
+['feedbackType', 'feedbackMessage', 'feedbackContact', 'feedbackIdeaKind', 'feedbackIdeaNote'].forEach(id => {
+  document.getElementById(id)?.addEventListener('input', saveFeedbackDraft);
+});
+document.getElementById('feedbackType')?.addEventListener('change', updateFeedbackMeta);
 
 document.getElementById('toggleBattle').addEventListener('click', () => {
   if (!state.battleOn && !canStartGridBattle()) {
@@ -207,3 +222,7 @@ setInterval(() => {
 setInterval(() => {
   if (document.getElementById('page-auction').classList.contains('active')) renderAuction();
 }, 1000);
+
+setInterval(() => {
+  if (typeof tickLifePetGather === 'function') tickLifePetGather();
+}, 2000);

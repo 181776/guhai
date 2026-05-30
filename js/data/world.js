@@ -1,6 +1,6 @@
 const TALENTS = [
   { id: 't_reflect', name: '反伤之躯', desc: '受击时反弹 20% 伤害给敌人', price: 300, effect: 'reflect', value: 0.2 },
-  { id: 't_critx2', name: '爆伤翻倍', desc: '爆伤加成 ×2（30% 变 60%）', price: 500, effect: 'critDmgMult', value: 2 },
+  { id: 't_critx2', name: '暴击伤害翻倍', desc: '暴击伤害加成 ×2（30% 变 60%）', price: 500, effect: 'critDmgMult', value: 2 },
   { id: 't_killheal', name: '嗜血本能', desc: '击败敌人回复 8% 最大生命', price: 250, effect: 'killHeal', value: 0.08 },
   { id: 't_speed', name: '疾风步', desc: '速度 +6', price: 200, stats: { speed: 6 } },
   { id: 't_critup', name: '会心之眼', desc: '暴击率 +8%', price: 350, stats: { critRate: 0.08 } },
@@ -34,12 +34,14 @@ const REGIONS = [
     monsters: ['山贼', '毒蜘蛛', '骷髅', '野狼'] },
 ];
 
+const LIFE_PET_EFFICIENCY = 0.1;
+
 const PETS = [
-  { id: 'p_slime', name: '小史莱姆', icon: '🟢', rarity: 'common', desc: '黏糊糊的跟屁虫' },
-  { id: 'p_wolf', name: '幼狼', icon: '🐺', rarity: 'rare', desc: '警惕但忠诚' },
-  { id: 'p_bat', name: '迷你蝠', icon: '🦇', rarity: 'common', desc: '喜欢倒挂着睡' },
-  { id: 'p_spider', name: '小毒蛛', icon: '🕷️', rarity: 'rare', desc: '八条腿跑得飞快' },
-  { id: 'p_ghost', name: '小骷髅', icon: '💀', rarity: 'epic', desc: '墨翁分神所化，遗迹中结缘' },
+  { id: 'p_slime', name: '小史莱姆', icon: '🟢', rarity: 'common', type: 'life', lifeSkill: 'chop', desc: '生活宠 · 自动砍柴（效率 10%）' },
+  { id: 'p_wolf', name: '幼狼', icon: '🐺', rarity: 'rare', type: 'battle', desc: '战斗宠 · 小幅提升物攻' },
+  { id: 'p_bat', name: '迷你蝠', icon: '🦇', rarity: 'common', type: 'life', lifeSkill: 'fish', desc: '生活宠 · 自动钓鱼（效率 10%）' },
+  { id: 'p_spider', name: '小毒蛛', icon: '🕷️', rarity: 'rare', type: 'life', lifeSkill: 'mine', desc: '生活宠 · 自动挖矿（效率 10%）' },
+  { id: 'p_ghost', name: '小骷髅', icon: '💀', rarity: 'epic', type: 'battle', desc: '战斗宠 · 小幅提升特攻特防' },
 ];
 
 const PET_DROP_BY_REGION = {

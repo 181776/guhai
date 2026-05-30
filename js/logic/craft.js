@@ -134,6 +134,7 @@ function craftItem(recipeId) {
   if (!recipe || !canCraft(recipeId)) return false;
   if (!consumeMaterials(recipe.mats)) return false;
   state.gold -= recipe.gold;
+  trackGoldSpent(recipe.gold);
   addConsumable(recipe.product);
   state.totalCrafts = (state.totalCrafts || 0) + 1;
   checkAchievements();

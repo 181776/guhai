@@ -30,11 +30,137 @@ function setBattleSpeed(spd) {
 
 function getPetBonuses(st = state) {
   const bonus = emptyStats();
-  if (!st.activePet) return bonus;
-  const pb = PET_BONUSES[st.activePet];
+  if (!st.activeBattlePet) return bonus;
+  const pb = PET_BONUSES[st.activeBattlePet];
   if (!pb?.stats) return bonus;
   for (const k of Object.keys(bonus)) bonus[k] += pb.stats[k] || 0;
   return bonus;
+}
+
+function getLifePetBonusText(petId) {
+  const pet = PETS.find(p => p.id === petId);
+  if (!pet || pet.type !== 'life') return '';
+  const skill = LIFE_SKILLS.find(s => s.id === pet.lifeSkill);
+  return skill ? `自动${skill.name} · 效率 ${Math.round(LIFE_PET_EFFICIENCY * 100)}%` : '';
+}
+
+function tickLifePetGather() {
+  const pid = state.activeLifePet;
+  if (!pid || !state.pets.includes(pid)) return;
+  const pet = PETS.find(p => p.id === pid);
+  if (pet?.type !== 'life' || !pet.lifeSkill) return;
+  const skill = LIFE_SKILLS.find(s => s.id === pet.lifeSkill);
+  if (!skill) return;
+  const now = Date.now();
+  const cdKey = 'pet_' + pet.lifeSkill;
+  const bonus = getLifeBonuses(pet.lifeSkill);
+  const cdMs = Math.floor(skill.cd * bonus.cdMult);
+  if (now < (state.lifePetCd?.[cdKey] || 0)) return;
+  state.lifePetCd[cdKey] = now + cdMs;
+  const baseG = skill.gold[0] + Math.floor(Math.random() * (skill.gold[1] - skill.gold[0] + 1));
+  const g = applyGoldGain(Math.floor(baseG * bonus.goldMult * LIFE_PET_EFFICIENCY));
+  const xpGain = Math.max(1, Math.floor((skill.xp + bonus.xpBonus) * LIFE_PET_EFFICIENCY));
+  if (g > 0) state.gold += g;
+  state.xp += applyXpGain(xpGain);
+  if (Math.random() < LIFE_PET_EFFICIENCY) addToBag({ ...skill.mat });
+  state.lifeSp = (state.lifeSp || 0) + (Math.random() < LIFE_PET_EFFICIENCY ? 1 : 0);
+  checkLevelUp(true);
+  save();
+}
+
+function trackGoldSpent(amount) {
+  if (!amount || amount <= 0) return;
+  state.totalGoldSpent = (state.totalGoldSpent || 0) + amount;
+  checkAchievements();
+}
+
+function handleBattleDefeat() {
+  clearInterval(battleTimer);
+  state.battleOn = false;
+  state.combo = 0;
+  state.mapStreak = 0;
+  state.pendingDefeatRetry = true;
+  state.totalDeaths = (state.totalDeaths || 0) + 1;
+
+  const goldLoss = Math.min(state.gold, Math.max(ECONOMY.defeatGoldMin, Math.floor(state.gold * ECONOMY.defeatGoldPct)));
+  const xpLoss = Math.min(state.xp, Math.floor(state.xp * ECONOMY.defeatXpPct));
+  state.gold -= goldLoss;
+  state.xp -= xpLoss;
+
+  state.battleDebuff = null;
+  state.playerStatus = null;
+  endBattleBlock();
+  addLog(`<span class="dmg">💀 战败！损失 ${goldLoss} 金、${xpLoss} 经验（等级不变）</span>`, true);
+
+  showDefeatModal(goldLoss, xpLoss);
+  if (typeof openBattleModal === 'function') openBattleModal();
+  checkAchievements();
+  render(); save();
+}
+
+function resumeBattleAfterDefeat(resetRoute) {
+  if (!canStartGridBattle()) {
+    render(); save();
+    return;
+  }
+  if (resetRoute && state.grid) {
+    state.grid.clearedEncounters = [];
+    resetPathCollectibles();
+    state.monster = null;
+    state.battleDebuff = null;
+    state.playerStatus = null;
+  }
+  state.battleOn = true;
+  clampHp();
+  autoUsePreBattleBuff();
+  if (!state.monster) {
+    spawnMonster();
+  } else {
+    const m = state.monster;
+    const label = m.isBoss && m.bossTitle
+      ? `👑 ${m.dropName || m.name} · ${m.bossTitle}`
+      : m.name;
+    startBattleBlock(label, m.level);
+    logTurnOrder(calcStats(), m);
+  }
+  clearInterval(battleTimer);
+  battleTimer = setInterval(battleTick, getBattleInterval());
+  addLog('—— 沿路线挂机 ——', true);
+  render(); save();
+}
+
+function retryAfterDefeat() {
+  if (!state.pendingDefeatRetry) return;
+  state.pendingDefeatRetry = false;
+  const s = calcStats();
+  state.currentHp = Math.max(1, Math.floor(s.maxHp * ECONOMY.defeatRetryHpPct));
+  closeDefeatModal();
+  addLog('—— 再战！生命恢复至两成，继续当前战斗 ——', true);
+  resumeBattleAfterDefeat(false);
+}
+
+function retreatAfterDefeat() {
+  if (!state.pendingDefeatRetry) return;
+  state.pendingDefeatRetry = false;
+  const s = calcStats();
+  state.currentHp = s.maxHp;
+  closeDefeatModal();
+  addLog('—— 撤退！生命已回满，航线清剿从头开始 ——', true);
+  resumeBattleAfterDefeat(true);
+}
+
+function showDefeatModal(goldLoss, xpLoss) {
+  const el = document.getElementById('defeatModal');
+  const text = document.getElementById('defeatText');
+  if (!el) return;
+  if (text) {
+    text.textContent = `你在战斗中倒下，损失了 ${goldLoss} 金币与 ${xpLoss} 点经验。等级未降低，但挂机已暂停。`;
+  }
+  el.classList.add('show');
+}
+
+function closeDefeatModal() {
+  document.getElementById('defeatModal')?.classList.remove('show');
 }
 
 function getQinglanStage(st = state) {
@@ -82,7 +208,7 @@ function claimBounty() {
   const b = state.bounty;
   if (!b || b.claimed || b.progress < b.target) return false;
   b.claimed = true;
-  state.gold += b.gold;
+  state.gold += applyGoldGain(b.gold);
   state.xp += applyXpGain(b.xp);
   checkLevelUp(true);
   showToast(`📜 悬赏奖励 +${b.gold} 金 +${b.xp} 经验`);
@@ -98,10 +224,11 @@ function checkAchievements() {
     if (state.achievements[a.id]) continue;
     if (!a.check(state)) continue;
     state.achievements[a.id] = Date.now();
-    if (a.reward.gold) state.gold += a.reward.gold;
-    if (a.reward.diamonds) state.diamonds = (state.diamonds || 0) + a.reward.diamonds;
-    if (a.reward.lifeSp) state.lifeSp = (state.lifeSp || 0) + a.reward.lifeSp;
-    showToast(`🏆 成就：${a.name}`);
+    const rw = a.reward || {};
+    if (rw.gold) state.gold += applyGoldGain(rw.gold);
+    if (rw.diamonds) state.diamonds = (state.diamonds || 0) + rw.diamonds;
+    if (rw.lifeSp) state.lifeSp = (state.lifeSp || 0) + rw.lifeSp;
+    showToast(a.noReward ? `🏆 纪念成就：${a.name}` : `🏆 成就：${a.name}`);
     any = true;
   }
   if (any) save();
@@ -209,3 +336,6 @@ function checkOfflineSummary() {
 window.setIdleMode = setIdleMode;
 window.setBattleSpeed = setBattleSpeed;
 window.claimBounty = claimBounty;
+window.retryAfterDefeat = retryAfterDefeat;
+window.retreatAfterDefeat = retreatAfterDefeat;
+window.closeDefeatModal = closeDefeatModal;

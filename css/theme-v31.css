@@ -582,10 +582,32 @@ body.v31-theme.pixel-theme .logo-icon {
 
 .v31-theme .equip-list li,
 .v31-theme .shop-list li,
-.v31-theme .skill-list li {
+.v31-theme .skill-list li,
+.v31-theme .picker-list li {
   background: var(--bg-inset);
-  border-color: var(--border);
 }
+
+.v31-theme .equip-list li.rarity-rare,
+.v31-theme .shop-list li.rarity-rare { box-shadow: inset 3px 0 0 #3b82f6, 0 0 10px rgba(59, 130, 246, 0.15); }
+.v31-theme .equip-list li.rarity-epic,
+.v31-theme .shop-list li.rarity-epic { box-shadow: inset 3px 0 0 #a855f7, 0 0 12px rgba(168, 85, 247, 0.18); }
+.v31-theme .equip-list li.rarity-legendary,
+.v31-theme .shop-list li.rarity-legendary { box-shadow: inset 3px 0 0 #f59e0b, 0 0 14px rgba(245, 158, 11, 0.25); }
+.v31-theme .equip-list li.rarity-set,
+.v31-theme .shop-list li.rarity-set { box-shadow: inset 3px 0 0 #06b6d4, 0 0 10px rgba(6, 182, 212, 0.15); }
+
+.v31-theme .codex-item.rarity-rare { box-shadow: 0 0 10px rgba(59, 130, 246, 0.15); }
+.v31-theme .codex-item.rarity-epic { box-shadow: 0 0 12px rgba(168, 85, 247, 0.2); }
+.v31-theme .codex-item.rarity-legendary { box-shadow: 0 0 16px rgba(245, 158, 11, 0.28); }
+.v31-theme .codex-item.rarity-set { box-shadow: 0 0 10px rgba(6, 182, 212, 0.15); }
+
+.v31-theme .equip-slot.rarity-rare { box-shadow: 0 0 10px rgba(59, 130, 246, 0.18); }
+.v31-theme .equip-slot.rarity-epic { box-shadow: 0 0 12px rgba(168, 85, 247, 0.22); }
+.v31-theme .equip-slot.rarity-legendary { box-shadow: 0 0 14px rgba(245, 158, 11, 0.28); }
+
+.v31-theme .badge.legendary { color: #fcd34d; background: rgba(245, 158, 11, 0.12); border-color: #f59e0b; }
+.v31-theme .badge.epic { color: #d8b4fe; background: rgba(168, 85, 247, 0.1); border-color: #a855f7; }
+.v31-theme .badge.rare { color: #93c5fd; background: rgba(59, 130, 246, 0.1); border-color: #3b82f6; }
 
 .v31-theme .ach-item.unlocked {
   background: var(--accent-soft);
@@ -1038,5 +1060,127 @@ body.v31-theme.pixel-theme .logo-icon {
   .dash-compact {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+/* v3.3 战败弹窗 · 宠物分区 */
+.defeat-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(0, 0, 0, 0.65);
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.defeat-modal.show { display: flex; }
+
+.defeat-modal-panel {
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  border: 2px solid #b13e53;
+  box-shadow: 0 0 24px rgba(177, 62, 83, 0.35);
+}
+
+.defeat-modal-panel h2 { color: #f87171; margin-bottom: 12px; }
+
+.defeat-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.defeat-modal-actions .btn { min-width: 120px; }
+
+.feedback-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(0, 0, 0, 0.65);
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.feedback-modal.show { display: flex; }
+
+.feedback-modal-panel {
+  max-width: 480px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 2px solid var(--border-strong);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+}
+
+.feedback-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.feedback-modal-head h2 { color: var(--accent); margin: 0; font-size: 1.1rem; }
+
+.feedback-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 12px 0 6px;
+}
+
+.feedback-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-subtle);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.feedback-textarea { resize: vertical; min-height: 120px; line-height: 1.5; }
+
+.feedback-idea-block {
+  margin-top: 4px;
+  padding: 12px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  background: var(--bg-subtle);
+}
+
+.feedback-idea-block .footer-tip { margin: 0 0 8px; }
+
+.feedback-idea-block .feedback-input + .feedback-input,
+.feedback-idea-textarea { margin-top: 8px; }
+
+.feedback-idea-textarea { min-height: 100px; }
+
+.feedback-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.pet-section { margin-bottom: 20px; }
+
+.pet-section-title {
+  font-size: 14px;
+  margin-bottom: 10px;
+  color: var(--text-muted);
+}
+
+.pet-grid-inner {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
 }
 

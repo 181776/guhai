@@ -8,12 +8,10 @@ const IDLE_MODES = {
 
 const BATTLE_SPEEDS = { 1: 900, 2: 450 };
 
+/** v3.3 战斗宠小幅属性（仅 activeBattlePet 生效） */
 const PET_BONUSES = {
-  p_slime: { stats: { hp: 15 }, desc: 'HP +15' },
-  p_wolf: { stats: { atk: 3 }, desc: '物攻 +3' },
-  p_bat: { stats: { speed: 2 }, desc: '速度 +2' },
-  p_spider: { stats: { critRate: 0.02 }, desc: '暴击 +2%' },
-  p_ghost: { stats: { spAtk: 4, spDef: 2 }, desc: '特攻 +4 特防 +2' },
+  p_wolf: { stats: { atk: 2 }, desc: '物攻 +2' },
+  p_ghost: { stats: { spAtk: 2, spDef: 1 }, desc: '特攻 +2 特防 +1' },
 };
 
 const QINGLAN_STAGES = [
@@ -53,6 +51,9 @@ const ACHIEVEMENTS = [
   { id: 'a_ruins', name: '踏入遗迹', desc: '进入古代遗迹', check: s => !!(s.storyFlags || {})['ch_ruins_enter'], reward: { gold: 120 } },
   { id: 'a_peak', name: '登峰', desc: '进入苍岚峰', check: s => !!(s.storyFlags || {})['ch_peak_enter'], reward: { gold: 200 } },
   { id: 'a_codex5', name: '博闻强识', desc: '解锁 5 种怪物图鉴', check: s => Object.keys(s.codex || {}).filter(k => (s.codex[k] || 0) > 0).length >= 5, reward: { gold: 80 } },
+  { id: 'a_first_death', name: '早晚给你来一拳', desc: '主角首次战败倒下', check: s => (s.totalDeaths || 0) >= 1, noReward: true,
+    memorialNote: '在v3.2版本，死亡是没惩罚可以无限续杯的，以及你猜我为什么要给你一拳' },
+  { id: 'a_gold_spent', name: '家财万贯', desc: '累计花费 10000 金币', check: s => (s.totalGoldSpent || 0) >= 10000, noReward: true },
 ];
 
 const BOUNTY_POOL = [

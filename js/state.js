@@ -10,7 +10,7 @@ const DEFAULT_STATE = {
   equip: { weapon: null, head: null, body: null, legs: null, feet: null, accessory: null },
   bag: [], skills: [], talents: [], lifeCd: { chop: 0, fish: 0, mine: 0 },
   lifeSp: 0, lifeTree: {},
-  currentRegion: 'village', pets: [], activePet: null,
+  currentRegion: 'village', pets: [], activeBattlePet: null, activeLifePet: null,
   lastCheckin: '', checkinStreak: 0,
   auctionLots: [], auctionRefreshAt: 0,
   grid: null,
@@ -18,8 +18,10 @@ const DEFAULT_STATE = {
   battleOn: false, monster: null, battleBuff: null, battleDebuff: null, battleStats: null,
   idleMode: 'balanced', battleSpeed: 1, combo: 0, maxCombo: 0, mapStreak: 0,
   totalKills: 0, totalBossKills: 0, totalRoutes: 0, totalCrafts: 0,
+  totalDeaths: 0, totalGoldSpent: 0,
   achievements: {}, bounty: null, lastSaveTime: 0, playerStatus: null,
   storyChapter: 'prologue', regionRoutes: {}, regionBossKills: {}, completedChapters: [],
+  lifePetCd: {}, pendingDefeatRetry: false,
 };
 
 function emptyStats() { return { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, speed: 0, critRate: 0, critDmg: 0 }; }
@@ -36,8 +38,24 @@ function migrateItem(item) {
   if (!item || item.type === 'material') return item;
   const copy = { ...item, stats: normalizeStats(item) };
   if (copy.slot === 'armor') copy.slot = 'body';
+  if (item.dynamic) copy.dynamic = item.dynamic;
   delete copy.atk; delete copy.def; delete copy.hp;
   return copy;
+}
+
+function calcDynamicAccessoryBonus(st, partial) {
+  const bonus = emptyStats();
+  for (const item of Object.values(st.equip || {}).filter(Boolean)) {
+    if (!item.dynamic?.length) continue;
+    for (const rule of item.dynamic) {
+      const src = partial[rule.from] ?? 0;
+      if (rule.to === 'def') bonus.def += Math.floor(src * rule.rate);
+      else if (rule.to === 'critRate') bonus.critRate += src * rule.rate;
+      else if (rule.to === 'atk') bonus.atk += Math.floor(src * rule.rate);
+      else if (rule.to in bonus) bonus[rule.to] += Math.floor(src * rule.rate);
+    }
+  }
+  return bonus;
 }
 
 function migrateEquip(old) {
@@ -51,6 +69,13 @@ function migrateEquip(old) {
   if (old.armor) eq.body = migrateItem({ ...old.armor, slot: 'body' });
   if (old.accessory) eq.accessory = migrateItem(old.accessory);
   return eq;
+}
+
+function grantStarterWeapon(d) {
+  if (d.equip?.weapon) return;
+  const w = typeof WEAPONS !== 'undefined' ? WEAPONS.find(x => x.id === 'w1') : null;
+  if (!w) return;
+  d.equip.weapon = migrateItem({ ...w, uid: 'starter_w1' });
 }
 
 function migrate(data) {
@@ -69,7 +94,17 @@ function migrate(data) {
   d.lifeTree = data.lifeTree || {};
   d.currentRegion = data.currentRegion || 'village';
   d.pets = data.pets || [];
-  d.activePet = data.activePet || null;
+  if (data.activeBattlePet != null) d.activeBattlePet = data.activeBattlePet;
+  else if (data.activePet) {
+    const p = PETS.find(x => x.id === data.activePet);
+    if (p?.type === 'life') d.activeLifePet = data.activePet;
+    else d.activeBattlePet = data.activePet;
+  } else {
+    d.activeBattlePet = null;
+  }
+  d.activeLifePet = data.activeLifePet ?? d.activeLifePet ?? null;
+  d.lifePetCd = data.lifePetCd || {};
+  d.pendingDefeatRetry = !!data.pendingDefeatRetry;
   d.lastCheckin = data.lastCheckin || '';
   d.checkinStreak = data.checkinStreak || 0;
   d.diamonds = data.diamonds || 0;
@@ -93,6 +128,8 @@ function migrate(data) {
   d.totalBossKills = data.totalBossKills || 0;
   d.totalRoutes = data.totalRoutes || 0;
   d.totalCrafts = data.totalCrafts || 0;
+  d.totalDeaths = data.totalDeaths || 0;
+  d.totalGoldSpent = data.totalGoldSpent || 0;
   d.achievements = data.achievements || {};
   d.bounty = data.bounty || null;
   d.lastSaveTime = data.lastSaveTime || 0;
@@ -107,6 +144,7 @@ function migrate(data) {
     delete d.grid.walkIndex;
     if (!d.grid.shape) d.grid = null;
   }
+  grantStarterWeapon(d);
   return d;
 }
 
@@ -209,16 +247,22 @@ function calcStats(st = state) {
   let critDmg = (bc.dmg + eq.critDmg + sk.critDmg + setB.critDmg + tb.bonus.critDmg + pb.critDmg) * tb.critDmgMult;
   let atk = sum('atk', LEVEL_GROWTH.atk);
   if (st.battleBuff?.atkMult) atk = Math.floor(atk * st.battleBuff.atkMult);
+  let def = sum('def', LEVEL_GROWTH.def);
+  const dynPartial = { maxHp, atk, def, critRate };
+  const dyn = calcDynamicAccessoryBonus(st, dynPartial);
+  def += dyn.def;
+  critRate += dyn.critRate;
   return {
     maxHp, hp: st.currentHp ?? maxHp,
     atk,
-    def: sum('def', LEVEL_GROWTH.def),
+    def,
     spAtk: sum('spAtk', LEVEL_GROWTH.spAtk),
     spDef: sum('spDef', LEVEL_GROWTH.spDef),
     speed: sum('speed', LEVEL_GROWTH.speed),
     critRate: Math.min(0.95, critRate),
     critDmg,
     setBonuses: setB.active,
+    dynamicBonus: dyn,
   };
 }
 

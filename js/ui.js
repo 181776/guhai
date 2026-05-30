@@ -1,8 +1,22 @@
+function dynamicStatHint(item, stats) {
+  if (!item?.dynamic?.length) return '';
+  const s = stats || calcStats();
+  return item.dynamic.map(rule => {
+    const src = rule.from === 'maxHp' ? s.maxHp : (s[rule.from] ?? 0);
+    if (rule.to === 'def') return `+${Math.floor(src * rule.rate)} 物防（依${rule.from === 'maxHp' ? '生命' : rule.from}）`;
+    if (rule.to === 'critRate') {
+      const fromLabel = { maxHp: '生命', atk: '物攻', speed: '速度' }[rule.from] || rule.from;
+      return `+${(src * rule.rate * 100).toFixed(1)}% 暴击（依${fromLabel}）`;
+    }
+    return rule.label || '';
+  }).join(' · ');
+}
+
 function statLabel(item) {
   const s = normalizeStats(item);
   return Object.entries(s).filter(([, v]) => v).map(([k, v]) => {
     if (k === 'critRate') return `暴击+${(v * 100).toFixed(0)}%`;
-    if (k === 'critDmg') return `爆伤+${(v * 100).toFixed(0)}%`;
+    if (k === 'critDmg') return `暴击伤害+${(v * 100).toFixed(0)}%`;
     return `${STAT_LABELS[k] || k}${v > 0 ? '+' : ''}${v}`;
   }).join(' ') || '—';
 }
@@ -16,7 +30,12 @@ function renderTopBar() {
   const hpPct = s.maxHp ? (state.currentHp / s.maxHp * 100).toFixed(0) : 100;
   const xpPct = (state.xp / state.xpNeed * 100).toFixed(0);
   const region = getRegion();
-  const pet = state.activePet ? PETS.find(p => p.id === state.activePet) : null;
+  const battlePet = state.activeBattlePet ? PETS.find(p => p.id === state.activeBattlePet) : null;
+  const lifePet = state.activeLifePet ? PETS.find(p => p.id === state.activeLifePet) : null;
+  const petTag = [
+    battlePet ? `🐾${battlePet.icon}` : '',
+    lifePet ? `🧺${lifePet.icon}` : '',
+  ].filter(Boolean).join(' ') || '';
   const weather = REGION_WEATHER[state.currentRegion] || REGION_WEATHER.village;
   const combo = state.combo || 0;
   const comboTag = combo > 0 ? `<span class="combo-badge" title="连击加成">🔥×${combo}</span>` : '';
@@ -27,7 +46,7 @@ function renderTopBar() {
     <span class="weather-badge" title="${esc(weather.tip)}">${weather.icon} ${weather.name}</span>
     <span style="color:var(--text-muted)">📍 ${region.name}</span>
     ${comboTag}
-    ${pet ? `<span title="${esc(pet.name)}">${pet.icon}</span>` : ''}
+    ${petTag ? `<span title="战斗/生活宠物">${petTag}</span>` : ''}
     <div class="bar-wrap">HP <div class="bar"><div class="bar-fill hp" style="width:${hpPct}%"></div></div> <span id="topHp" class="stat-num">${state.currentHp}</span>/${s.maxHp}</div>
     <div class="bar-wrap">XP <div class="bar"><div class="bar-fill xp" style="width:${xpPct}%"></div></div> <span id="topXp" class="stat-num">${state.xp}/${state.xpNeed}</span></div>
     <span class="gold">💰 <span id="topGold" class="stat-num">${state.gold}</span></span>
@@ -94,7 +113,7 @@ function updateMapStatusLine() {
   if (g.phase === 'draw') {
     statusEl.textContent = gridPathValid()
       ? '路线已连通，点击「确认路线」开始挂机（短路线有捷径奖励）'
-      : '左键拖线 · 右键取消 · 👑Boss 📦箱 💊补给 · 空白处为不可通行';
+      : '左键拖线 · 右键取消 · 👑Boss 📦箱 💊补给';
   } else {
     statusEl.textContent = `航线锁定 · 剩余 ${remaining}/${totalEnc} 战 · ${state.battleOn ? '挂机中…' : '在战斗窗口开始挂机'}` +
       (best ? ` · 最佳 ${best.steps} 步` : '');
@@ -172,7 +191,7 @@ function renderCheckin() {
   yesterday.setDate(yesterday.getDate() - 1);
   const yStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
   const nextStreak = (state.lastCheckin === yStr) ? state.checkinStreak + 1 : 1;
-  const previewGold = CHECKIN_BASE[Math.min(nextStreak - 1, CHECKIN_BASE.length - 1)];
+  const previewGold = applyGoldGain(CHECKIN_BASE[Math.min(nextStreak - 1, CHECKIN_BASE.length - 1)]);
   const statusEl = document.getElementById('checkinStatus');
   if (done) {
     statusEl.textContent = `今日已领取。连续签到 ${state.checkinStreak} 天。`;
@@ -186,20 +205,28 @@ function renderCheckin() {
 }
 
 function renderPet() {
-  document.getElementById('petGrid').innerHTML = PETS.map(p => {
+  const renderCard = (p) => {
     const owned = state.pets.includes(p.id);
-    const isActive = state.activePet === p.id;
+    const isBattle = p.type === 'battle';
+    const isActive = isBattle ? state.activeBattlePet === p.id : state.activeLifePet === p.id;
     const art = owned ? petArt(p.id) : '';
-    const pb = PET_BONUSES[p.id];
-    const bonusText = pb ? `跟随加成：${pb.desc}` : '';
-    return `<div class="pet-card${owned ? '' : ' locked'}${isActive ? ' active' : ''}">
+    const pb = isBattle ? PET_BONUSES[p.id] : null;
+    const bonusText = pb ? `战斗加成：${pb.desc}` : (owned ? getLifePetBonusText(p.id) : '');
+    const typeLabel = isBattle ? '战斗宠' : '生活宠';
+    return `<div class="pet-card${owned ? '' : ' locked'}${isActive ? ' active' : ''} ${rarityClass(p)}">
       <div class="pet-icon">${art ? pixelImg(art, p.name, 'pet-sprite') : (owned ? p.icon : '❓')}</div>
       <div class="pet-name">${owned ? p.name : '???'}</div>
-      <span class="badge ${p.rarity}">${p.rarity}</span>
+      <span class="${badgeRarityClass(p)}">${getRarityLabel(p)}</span>
+      <span class="badge common">${typeLabel}</span>
       <p class="item-desc" style="margin:8px 0">${owned ? (bonusText || p.desc) : '地图战斗有概率捕获'}</p>
-      ${owned ? `<button type="button" class="btn btn-sm" data-pet="${p.id}">${isActive ? '取消跟随' : '设为跟随'}</button>` : ''}
+      ${owned ? `<button type="button" class="btn btn-sm" data-pet="${p.id}" data-pet-type="${p.type}">${isActive ? '取消指派' : (isBattle ? '设为战斗宠' : '设为生活宠')}</button>` : ''}
     </div>`;
-  }).join('');
+  };
+  const battlePets = PETS.filter(p => p.type === 'battle');
+  const lifePets = PETS.filter(p => p.type === 'life');
+  document.getElementById('petGrid').innerHTML = `
+    <div class="pet-section"><h3 class="pet-section-title">⚔ 战斗宠物</h3><div class="pet-grid-inner">${battlePets.map(renderCard).join('')}</div></div>
+    <div class="pet-section"><h3 class="pet-section-title">🧺 生活宠物</h3><div class="pet-grid-inner">${lifePets.map(renderCard).join('')}</div></div>`;
 }
 
 function renderAchievements() {
@@ -222,16 +249,19 @@ function renderAchievements() {
   listEl.innerHTML = ACHIEVEMENTS.map(a => {
     const got = !!state.achievements?.[a.id];
     const rw = [];
-    if (a.reward.gold) rw.push(`${a.reward.gold}金`);
-    if (a.reward.diamonds) rw.push(`${a.reward.diamonds}💎`);
-    if (a.reward.lifeSp) rw.push(`${a.reward.lifeSp}生活点`);
+    if (a.reward?.gold) rw.push(`${a.reward.gold}金`);
+    if (a.reward?.diamonds) rw.push(`${a.reward.diamonds}💎`);
+    if (a.reward?.lifeSp) rw.push(`${a.reward.lifeSp}生活点`);
+    const rwText = a.noReward
+      ? `无（纪念成就）${a.memorialNote || ''}`
+      : (rw.join(' · ') || '—');
     return `<li class="ach-item${got ? ' unlocked' : ''}">
       <div class="ach-icon">${got ? '🏆' : '🔒'}</div>
       <div class="ach-info">
         <b>${esc(a.name)}</b>
         <span class="badge ${got ? 'epic' : 'common'}">${got ? '已达成' : '未达成'}</span>
         <p>${esc(a.desc)}</p>
-        <p class="footer-tip">奖励：${rw.join(' · ') || '—'}</p>
+        <p class="footer-tip">奖励：${rwText}</p>
       </div>
     </li>`;
   }).join('');
@@ -392,7 +422,7 @@ function renderChar() {
     <div class="stat-item"><b>特防</b><span>${s.spDef}</span></div>
     <div class="stat-item"><b>速度</b><span>${s.speed}</span></div>
     <div class="stat-item"><b>暴击率</b><span>${(s.critRate * 100).toFixed(1)}%</span></div>
-    <div class="stat-item"><b>爆伤</b><span>${(s.critDmg * 100).toFixed(0)}%</span></div>`;
+    <div class="stat-item"><b>暴击伤害</b><span>${(s.critDmg * 100).toFixed(0)}%</span></div>`;
 
   let slotsHtml = '<div class="equip-group-title">⚔ 武器 · 饰品</div>';
   for (const slot of ['weapon', 'accessory']) slotsHtml += renderSlot(slot);
@@ -407,14 +437,14 @@ function renderChar() {
     const candidates = state.bag.filter(i => i.slot === pickingSlot && i.type !== 'material');
     document.getElementById('slotPickerList').innerHTML = candidates.length === 0
       ? '<li class="skill-empty">背包无此部位装备</li>'
-      : candidates.map(item => `<li><span class="item-info"><span class="badge ${item.setId ? 'set' : item.rarity}">${esc(item.name)}</span>
+      : candidates.map(item => `<li class="${rarityClass(item)}"><span class="item-info"><span class="${badgeRarityClass(item)}">${getRarityLabel(item)}</span> ${esc(item.name)}
           <div class="item-desc">${statLabel(item)}${item.setId ? ' · ' + SET_DEFS[item.setId]?.name : ''}</div></span>
           <button class="btn btn-sm" onclick="equipFromPicker('${item.uid}')">装备</button></li>`).join('');
   } else picker.style.display = 'none';
 
   const skillEl = document.getElementById('skillDisplay');
   skillEl.innerHTML = state.skills.length === 0 ? '<li class="skill-empty">暂无武功</li>' :
-    state.skills.map(sk => `<li><span class="item-info"><span class="badge manual">${esc(sk.name)}</span>
+    state.skills.map(sk => `<li class="${rarityClass(sk)}"><span class="item-info"><span class="${badgeRarityClass(sk)}">${getRarityLabel(sk)} · ${esc(sk.name)}</span>
       <div class="item-desc">${statLabel(sk)}</div></span></li>`).join('');
 
   document.getElementById('talentDisplay').innerHTML = TALENTS.map(t => {
@@ -431,10 +461,10 @@ function renderChar() {
 function renderSlot(slot, isSet) {
   const item = state.equip[slot];
   const isActive = pickingSlot === slot;
-  return `<div class="equip-slot${isSet ? ' set-slot' : ''}${isActive ? ' active' : ''}">
+  return `<div class="equip-slot${isSet ? ' set-slot' : ''}${isActive ? ' active' : ''}${item ? ' ' + rarityClass(item) : ''}">
     <div class="slot-label">${SLOT_NAMES[slot]}</div>
-    <div class="slot-item">${item ? `<b>${esc(item.name)}</b>${item.setId ? `<div class="item-desc"><span class="badge set">${SET_DEFS[item.setId]?.name}</span></div>` : ''}
-      <div class="item-desc">${statLabel(item)}</div>` : '<div class="empty">未装备</div>'}</div>
+    <div class="slot-item">${item ? `<span class="${badgeRarityClass(item)}">${getRarityLabel(item)}</span> <b>${esc(item.name)}</b>${item.setId ? `<div class="item-desc">${SET_DEFS[item.setId]?.name}</div>` : ''}
+      <div class="item-desc">${statLabel(item)}${item.dynamic?.length ? `<br><span class="footer-tip">${dynamicStatHint(item)}</span>` : ''}</div>` : '<div class="empty">未装备</div>'}</div>
     <div class="slot-actions">
       <button class="btn btn-sm" onclick="openSlotPicker('${slot}')">更换</button>
       ${item ? `<button class="btn btn-sm btn-outline" onclick="unequipFromSlot('${slot}')">卸下</button>` : ''}
@@ -476,10 +506,10 @@ function renderBattle() {
   renderBattleStatsPanel();
   const btn = document.getElementById('toggleBattle');
   const canBattle = canStartGridBattle();
-  btn.textContent = state.battleOn ? '停止挂机' : '开始挂机';
+  btn.textContent = state.battleOn ? '停止挂机' : (state.pendingDefeatRetry ? '战败待选' : '开始挂机');
   btn.className = state.battleOn ? 'btn btn-danger' : 'btn';
-  btn.disabled = !state.battleOn && !canBattle;
-  btn.title = canBattle || state.battleOn ? '' : '请先在上方连线路线并确认，路线上须有怪物格';
+  btn.disabled = (!state.battleOn && !canBattle) || state.pendingDefeatRetry;
+  btn.title = state.pendingDefeatRetry ? '请先选择「再战」或「撤退」' : (canBattle || state.battleOn ? '' : '请先在上方连线路线并确认，路线上须有怪物格');
   const s = calcStats(); clampHp();
   const hpPct = s.maxHp ? (state.currentHp / s.maxHp * 100).toFixed(0) : 100;
   document.getElementById('playerName').textContent = state.name;
@@ -542,14 +572,14 @@ function renderBag() {
   let html = '';
   if (consumables.length) {
     html += '<div class="bag-section-title">🧪 挂机药囊</div><ul class="equip-list">';
-    html += consumables.map(item => `<li><span class="item-info"><span class="badge ${item.rarity}">${esc(item.name)}</span> × ${item.count || 1}
+    html += consumables.map(item => `<li class="${rarityClass(item)}"><span class="item-info"><span class="${badgeRarityClass(item)}">${getRarityLabel(item)}</span> ${esc(item.name)} × ${item.count || 1}
       <div class="item-desc">${esc(item.desc || '')} · 挂机自动消耗</div></span>
       <button class="btn btn-sm btn-sell" onclick="sellOneMaterial('${item.uid}')">卖×1</button></li>`).join('');
     html += '</ul>';
   }
   if (materials.length) {
     html += '<div class="bag-section-title">📦 材料</div><ul class="equip-list">';
-    html += materials.map(item => `<li><span class="item-info"><span class="badge material">${esc(item.name)}</span> × ${item.count || 1}
+    html += materials.map(item => `<li class="${rarityClass(item)}"><span class="item-info"><span class="${badgeRarityClass(item)}">${esc(item.name)}</span> × ${item.count || 1}
       <div class="item-desc">单价 ${MATERIAL_SELL[item.id] || 5} 金</div></span>
       <button class="btn btn-sm btn-sell" onclick="sellOneMaterial('${item.uid}')">卖×1</button>
       <button class="btn btn-sm btn-sell" onclick="sellItem('${item.uid}')">全卖 ${getSellPrice(item)}金</button></li>`).join('');
@@ -557,14 +587,14 @@ function renderBag() {
   }
   if (gear.length) {
     html += '<div class="bag-section-title">⚔ 装备</div><ul class="equip-list">';
-    html += gear.map(item => `<li><span class="item-info"><span class="badge ${item.setId ? 'set' : item.rarity}">${SLOT_NAMES[item.slot]} ${esc(item.name)}</span>
+    html += gear.map(item => `<li class="${rarityClass(item)}"><span class="item-info"><span class="${badgeRarityClass(item)}">${getRarityLabel(item)}</span> ${SLOT_NAMES[item.slot]} ${esc(item.name)}
       <div class="item-desc">${statLabel(item)} · 售价 ${getSellPrice(item)} 金</div></span>
       <button class="btn btn-sm btn-sell" onclick="sellItem('${item.uid}')">贩卖</button></li>`).join('');
     html += '</ul>';
   }
   if (manuals.length) {
     html += '<div class="bag-section-title">📜 秘籍（不可贩卖）</div><ul class="equip-list">';
-    html += manuals.map(item => `<li><span class="item-info">${esc(item.name)} · ${statLabel(item)}</span>
+    html += manuals.map(item => `<li class="${rarityClass(item)}"><span class="item-info"><span class="${badgeRarityClass(item)}">${getRarityLabel(item)}</span> ${esc(item.name)} · ${statLabel(item)}</span>
       <button class="btn btn-sm" onclick="learnFromBag('${item.uid}')">学习</button></li>`).join('');
     html += '</ul>';
   }
@@ -573,7 +603,7 @@ function renderBag() {
 
 function getShopItems() {
   if (shopTab === 'weapon') return WEAPONS;
-  if (shopTab === 'set') return SET_ITEMS;
+  if (shopTab === 'set') return [...SET_ITEMS, ...GEAR_ITEMS];
   if (shopTab === 'manual') return MANUALS;
   return ACCESSORIES;
 }
@@ -666,18 +696,61 @@ function renderCheat() {
   }
 }
 
+function renderCodexEquipEntries(filterCategory) {
+  const slotHint = { weapon: '武器', accessory: '饰品' };
+  const slotOrder = { head: 0, body: 1, legs: 2, feet: 3 };
+  let entries = Object.values(EQUIP_CODEX).filter(e => {
+    if (filterCategory === 'weapon') return e.category === 'weapon';
+    if (filterCategory === 'gear') return e.category === 'set' || e.category === 'gear';
+    if (filterCategory === 'accessory') return e.category === 'accessory';
+    return false;
+  });
+  if (filterCategory === 'gear') {
+    entries = entries.slice().sort((a, b) => {
+      const aSet = a.setId || 'zzz';
+      const bSet = b.setId || 'zzz';
+      const setCmp = aSet.localeCompare(bSet);
+      if (setCmp) return setCmp;
+      return (slotOrder[a.slot] ?? 9) - (slotOrder[b.slot] ?? 9);
+    });
+  }
+  return entries.map(entry => {
+    const unlocked = isItemCodexUnlocked(entry.id);
+    const count = getItemCodexCount(entry.id);
+    const pseudo = { rarity: entry.rarity, setId: entry.setId, category: entry.category };
+    const rCls = rarityClass(pseudo);
+    const qualityLabel = getRarityLabel(pseudo);
+    const typeHint = entry.setId
+      ? `${SET_DEFS[entry.setId]?.name || '套装'} · ${SLOT_NAMES[entry.slot] || entry.slot}`
+      : (SLOT_NAMES[entry.slot] || slotHint[entry.category] || '');
+    return `<li class="codex-item${unlocked ? '' : ' locked'} ${rCls}">
+      <div class="codex-info" style="width:100%">
+        <b>${esc(entry.name)}</b>
+        <span class="${badgeRarityClass(pseudo)}">${qualityLabel}</span>
+        ${typeHint ? `<span class="badge common">${esc(typeHint)}</span>` : ''}
+        <span class="badge ${unlocked ? 'epic' : 'common'}">${unlocked ? `已获得 ×${count}` : '未获得'}</span>
+        <p>${esc(entry.lore)}</p>
+        ${entry.stats && Object.values(entry.stats).some(v => v) ? `<p class="footer-tip">${statLabel({ stats: entry.stats })}</p>` : ''}
+        ${entry.dynamic?.length ? `<p class="footer-tip">动态：${entry.dynamic.map(r => r.label || '').filter(Boolean).join(' · ')}</p>` : ''}
+      </div>
+    </li>`;
+  }).join('');
+}
+
 function renderCodex() {
   const listEl = document.getElementById('codexList');
   const setsEl = document.getElementById('equipCodexSets');
   const tipEl = document.getElementById('codexTip');
   if (!listEl) return;
 
+  if (codexTab === 'equip') codexTab = 'weapon';
+
   document.querySelectorAll('.codex-tab').forEach(t => t.classList.toggle('active', t.dataset.codex === codexTab));
 
   if (codexTab === 'monster') {
     if (setsEl) setsEl.style.display = 'none';
     listEl.style.display = '';
-    if (tipEl) tipEl.textContent = '击败足够数量解锁 lore 与弱点。瞭望术天赋可识破地图上的怪格。';
+    if (tipEl) tipEl.textContent = '怪物图鉴 · 瞭望术天赋可识破地图上的怪格。';
     listEl.innerHTML = Object.keys(CODEX).map(name => {
       const entry = CODEX[name];
       const kills = getCodexKills(name);
@@ -689,34 +762,38 @@ function renderCodex() {
         <div class="codex-info">
           <b>${entry.boss ? '👑 ' : ''}${name}</b>
           <span class="badge ${unlocked ? 'epic' : 'common'}">${unlocked ? '已解锁' : `${kills}/${entry.unlockKills} 击败`}</span>
-          <p>${unlocked ? entry.lore : '??? 击败后解锁'}</p>
-          ${unlocked ? `<p class="footer-tip">弱点：${entry.weak}</p>` : ''}
+          <p>${entry.lore}</p>
+          <p class="footer-tip">弱点：${entry.weak}</p>
         </div>
       </li>`;
     }).join('');
     return;
   }
 
-  if (tipEl) tipEl.textContent = '获得装备后解锁图鉴。套装效果见下方。';
-  listEl.style.display = '';
-  if (setsEl) setsEl.style.display = 'block';
-  renderEquipCodexSets();
+  if (codexTab === 'accessory') {
+    if (setsEl) setsEl.style.display = 'none';
+    listEl.style.display = '';
+    if (tipEl) tipEl.textContent = '饰品图鉴 · 商店与拍卖会可购入部分饰品。';
+    listEl.innerHTML = renderCodexEquipEntries('accessory');
+    return;
+  }
 
-  const catLabel = { weapon: '武器', accessory: '饰品', set: '套装' };
-  listEl.innerHTML = Object.values(EQUIP_CODEX).map(entry => {
-    const unlocked = isItemCodexUnlocked(entry.id);
-    const count = getItemCodexCount(entry.id);
-    const slotLabel = entry.setId ? SET_DEFS[entry.setId]?.name : (SLOT_NAMES[entry.slot] || catLabel[entry.category] || '');
-    return `<li class="codex-item${unlocked ? '' : ' locked'}">
-      <div class="codex-info" style="width:100%">
-        <b>${esc(entry.name)}</b>
-        <span class="badge ${entry.setId ? 'set' : entry.rarity}">${slotLabel}</span>
-        <span class="badge ${unlocked ? 'epic' : 'common'}">${unlocked ? `已获得 ×${count}` : '未获得'}</span>
-        <p>${unlocked ? esc(entry.lore) : '??? 获得后解锁'}</p>
-        ${unlocked && entry.stats ? `<p class="footer-tip">${statLabel({ stats: entry.stats })}</p>` : ''}
-      </div>
-    </li>`;
-  }).join('');
+  if (codexTab === 'weapon') {
+    if (setsEl) setsEl.style.display = 'none';
+    listEl.style.display = '';
+    if (tipEl) tipEl.textContent = '武器图鉴 · 商店、打怪掉落与拍卖会可获部分兵器。';
+    listEl.innerHTML = renderCodexEquipEntries('weapon');
+    return;
+  }
+
+  if (codexTab === 'gear') {
+    if (tipEl) tipEl.textContent = '装备图鉴 · 头饰、衣甲、护腿、战靴；套装四件效果见下方。';
+    listEl.style.display = '';
+    if (setsEl) setsEl.style.display = 'block';
+    renderEquipCodexSets();
+    listEl.innerHTML = renderCodexEquipEntries('gear');
+    return;
+  }
 }
 
 function formatAuctionCountdown(ms) {
@@ -737,18 +814,25 @@ function renderAuction() {
       return `<li class="auction-sold"><span class="item-info"><span class="badge common">已售出</span> ${esc(lot.item.name)}</span></li>`;
     }
     const item = lot.item;
-    const tag = item.type === 'manual' ? '秘籍' : item.setId ? SET_DEFS[item.setId]?.name : (SLOT_NAMES[item.slot] || '物品');
+    const isPet = item.type === 'pet';
+    const tag = isPet ? '宠物' : item.type === 'manual' ? '秘籍' : item.setId ? SET_DEFS[item.setId]?.name : (SLOT_NAMES[item.slot] || '物品');
+    const lotBadge = lot.lotTag ? `<span class="badge ${item.rarity === 'legendary' ? 'legendary' : 'epic'}">${esc(lot.lotTag)}</span>` : '';
+    const nameLine = isPet ? `${item.icon || '🐾'} ${esc(item.name)}` : esc(item.name);
+    const statLine = isPet ? esc(item.desc) : statLabel(item);
     const priceLabel = lot.currency === 'diamond'
       ? `💎 ${lot.price}`
       : `${lot.price} 金`;
     const canBuy = lot.currency === 'diamond'
       ? (state.diamonds || 0) >= lot.price
       : state.gold >= lot.price;
-    return `<li><span class="item-info">
-      <span class="badge ${item.setId ? 'set' : item.rarity}">${tag}</span> ${esc(item.name)} · ${statLabel(item)}
-      ${item.desc ? `<div class="item-desc">${esc(item.desc)}</div>` : ''}
-      <div class="item-desc">成交价 <span class="${lot.currency === 'diamond' ? 'diamond' : 'gold'}">${priceLabel}</span></div></span>
-      <button class="btn btn-sm" onclick="buyAuctionLot('${lot.id}')" ${canBuy ? '' : 'disabled'}">竞拍</button></li>`;
+    const owned = isPet
+      ? (state.pets || []).includes(item.petId)
+      : (item.id && playerOwnsItemId(state, item.id));
+    return `<li class="${rarityClass(item)}${item.rarity === 'legendary' ? ' auction-legendary' : ''}"><span class="item-info">
+      <span class="${badgeRarityClass(item)}">${getRarityLabel(item)}</span> ${lotBadge} ${tag ? `<span class="badge common">${tag}</span>` : ''} ${nameLine} · ${statLine}
+      ${item.desc && !isPet ? `<div class="item-desc">${esc(item.desc)}</div>` : ''}
+      <div class="item-desc">成交价 <span class="${lot.currency === 'diamond' ? 'diamond' : 'gold'}">${priceLabel}</span>${item.rarity === 'legendary' ? ' · 传说仅拍卖会/特殊事件' : ''}</div></span>
+      <button class="btn btn-sm" onclick="buyAuctionLot('${lot.id}')" ${canBuy && !owned ? '' : 'disabled'}">${owned ? '已拥有' : '竞拍'}</button></li>`;
   }).join('');
 
   const gear = state.bag.filter(i => i.slot && i.type !== 'material' && i.type !== 'manual');
@@ -763,7 +847,7 @@ function renderAuction() {
   list.innerHTML = gear.map(item => {
     const base = getSellPrice(item);
     const total = base + Math.floor(base * 0.25);
-    return `<li><span class="item-info"><span class="badge ${item.setId ? 'set' : item.rarity}">${SLOT_NAMES[item.slot]} ${esc(item.name)}</span>
+    return `<li class="${rarityClass(item)}"><span class="item-info"><span class="${badgeRarityClass(item)}">${getRarityLabel(item)}</span> ${SLOT_NAMES[item.slot]} ${esc(item.name)}
       <div class="item-desc">${statLabel(item)} · 寄售可得约 ${total} 金${item.rarity === 'epic' ? '（史诗或得💎）' : ''}</div></span>
       <button class="btn btn-sm btn-sell" onclick="consignToAuction('${item.uid}')">寄售</button></li>`;
   }).join('');
@@ -775,7 +859,7 @@ function renderShop() {
     const isManual = item.type === 'manual';
     const owned = isManual && (state.skills.some(s => s.id === item.id) || state.bag.some(i => i.id === item.id && i.type === 'manual'));
     const tag = isManual ? '秘籍' : item.setId ? SET_DEFS[item.setId]?.name : (SLOT_NAMES[item.slot] || '');
-    return `<li><span class="item-info"><span class="badge ${item.setId ? 'set' : item.rarity}">${tag}</span> ${esc(item.name)} · ${statLabel(item)}
+    return `<li class="${rarityClass(item)}"><span class="item-info"><span class="${badgeRarityClass(item)}">${getRarityLabel(item)}</span> ${tag ? `<span class="badge common">${tag}</span>` : ''} ${esc(item.name)} · ${statLabel(item)}
       ${item.desc ? `<div class="item-desc">${esc(item.desc)}</div>` : ''}</span>
       <button class="btn btn-sm" onclick="buyFromShop('${item.id}')" ${state.gold < item.price || owned ? 'disabled' : ''}>${owned ? '已拥有' : item.price + ' 金'}</button></li>`;
   }).join('');

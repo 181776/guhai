@@ -95,7 +95,7 @@ function advanceStoryChapter() {
   if (!ch || !isCurrentChapterComplete()) return false;
 
   const rw = ch.rewards || {};
-  if (rw.gold) state.gold += rw.gold;
+  if (rw.gold) state.gold += applyGoldGain(rw.gold);
   if (rw.xp) state.xp += applyXpGain(rw.xp);
   if (rw.diamonds) state.diamonds = (state.diamonds || 0) + rw.diamonds;
   checkLevelUp(true);

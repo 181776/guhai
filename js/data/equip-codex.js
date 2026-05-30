@@ -10,6 +10,8 @@ function buildEquipCodexEntry(item, category) {
     stats: item.stats,
     desc: item.desc || '',
     lore: item.lore || item.desc || '尚未收录来历。',
+    unobtainable: !!(item.unobtainable || item.auctionOnly || item.eventOnly),
+    dynamic: item.dynamic || null,
   };
 }
 
@@ -17,6 +19,7 @@ const EQUIP_CODEX = {};
 for (const w of WEAPONS) EQUIP_CODEX[w.id] = buildEquipCodexEntry(w, 'weapon');
 for (const a of ACCESSORIES) EQUIP_CODEX[a.id] = buildEquipCodexEntry(a, 'accessory');
 for (const s of SET_ITEMS) EQUIP_CODEX[s.id] = buildEquipCodexEntry(s, 'set');
+for (const g of GEAR_ITEMS) EQUIP_CODEX[g.id] = buildEquipCodexEntry(g, 'gear');
 for (const d of DROP_WEAPONS) EQUIP_CODEX[d.id] = buildEquipCodexEntry({ ...d, lore: '打怪稀有掉落，来历不明。' }, 'weapon');
 for (const d of DROP_SET) EQUIP_CODEX[d.id] = buildEquipCodexEntry({ ...d, lore: '打怪稀有掉落，来历不明。' }, 'set');
 

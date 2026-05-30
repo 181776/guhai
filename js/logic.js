@@ -320,7 +320,7 @@ function battleTick() {
   clampHp();
   if (m.hp <= 0) {
     const sourceCell = m.sourceCell;
-    state.gold += m.gold; state.xp += applyXpGain(m.xp);
+    state.gold += applyGoldGain(m.gold); state.xp += applyXpGain(m.xp);
     trackBattleStat('kills', 1);
     recordMonsterKill(m.name);
     if (m.isBoss) {
@@ -360,11 +360,8 @@ function battleTick() {
       render(); save();
       return;
     }
-    addLog('<span class="dmg">你已倒下，3秒后恢复30%生命</span>');
-    state.combo = 0;
-    state.mapStreak = 0;
-    clearInterval(battleTimer); state.battleOn = false;
-    setTimeout(() => { state.currentHp = Math.floor(calcStats().maxHp * 0.3); addLog('—— 恢复再战 ——', true); render(); save(); }, 3000);
+    handleBattleDefeat();
+    return;
   }
   render();
 }
@@ -408,6 +405,7 @@ function buyItem(shopItem) {
   if (state.gold < shopItem.price) return;
   if (shopItem.type === 'manual' && (state.skills.some(s => s.id === shopItem.id) || state.bag.some(i => i.id === shopItem.id && i.type === 'manual'))) return;
   state.gold -= shopItem.price;
+  trackGoldSpent(shopItem.price);
   addToBag({ ...shopItem, uid: Date.now() + Math.random() });
   render(); save();
 }
@@ -416,6 +414,7 @@ function unlockTalent(id) {
   const t = TALENTS.find(x => x.id === id);
   if (!t || hasTalent(id) || state.gold < t.price) return;
   state.gold -= t.price;
+  trackGoldSpent(t.price);
   state.talents.push(id);
   clampHp(); render(); save();
 }
@@ -434,7 +433,7 @@ function doLifeSkill(id) {
   state.lifeCd[id] = now + cdMs;
   addToBag({ ...skill.mat }, { notify: true });
   const baseG = skill.gold[0] + Math.floor(Math.random() * (skill.gold[1] - skill.gold[0] + 1));
-  const g = Math.floor(baseG * bonus.goldMult);
+  const g = applyGoldGain(Math.floor(baseG * bonus.goldMult));
   state.gold += g;
   const xpGain = skill.xp + bonus.xpBonus;
   state.xp += applyXpGain(xpGain);
@@ -459,7 +458,7 @@ function doCheckin() {
   state.checkinStreak = (state.lastCheckin === yStr) ? state.checkinStreak + 1 : 1;
   state.lastCheckin = today;
   const idx = Math.min(state.checkinStreak - 1, CHECKIN_BASE.length - 1);
-  const gold = CHECKIN_BASE[idx];
+  const gold = applyGoldGain(CHECKIN_BASE[idx]);
   state.gold += gold;
   if (state.checkinStreak >= 7) state.diamonds = (state.diamonds || 0) + 2;
   else if (state.checkinStreak >= 4) state.diamonds = (state.diamonds || 0) + 1;
@@ -469,11 +468,27 @@ function doCheckin() {
   render(); save();
 }
 
-function setActivePet(id) {
+function setActiveBattlePet(id) {
   if (!state.pets.includes(id)) return;
-  state.activePet = state.activePet === id ? null : id;
+  const pet = PETS.find(p => p.id === id);
+  if (pet?.type !== 'battle') return;
+  state.activeBattlePet = state.activeBattlePet === id ? null : id;
   checkAchievements();
   render(); save();
+}
+
+function setActiveLifePet(id) {
+  if (!state.pets.includes(id)) return;
+  const pet = PETS.find(p => p.id === id);
+  if (pet?.type !== 'life') return;
+  state.activeLifePet = state.activeLifePet === id ? null : id;
+  render(); save();
+}
+
+function setActivePet(id) {
+  const pet = PETS.find(p => p.id === id);
+  if (pet?.type === 'life') setActiveLifePet(id);
+  else setActiveBattlePet(id);
 }
 
 function setCheatGold(val) {
@@ -498,18 +513,41 @@ function buyAuctionLot(lotId) {
   const lot = state.auctionLots.find(l => l.id === lotId);
   if (!lot || lot.sold) return;
   const item = lot.item;
+
+  if (item.type === 'pet') {
+    if ((state.pets || []).includes(item.petId)) return;
+    if (lot.currency === 'diamond') {
+      if ((state.diamonds || 0) < lot.price) return;
+      state.diamonds -= lot.price;
+    } else {
+      if (state.gold < lot.price) return;
+      state.gold -= lot.price;
+      trackGoldSpent(lot.price);
+    }
+    state.pets.push(item.petId);
+    lot.sold = true;
+    showToast(`🐾 拍得宠物：${item.name}`);
+    render(); save();
+    return;
+  }
+
   if (item.type === 'manual') {
     if (state.skills.some(s => s.id === item.id) || state.bag.some(i => i.id === item.id && i.type === 'manual')) return;
-  }
+  } else if (item.id && playerOwnsItemId(state, item.id)) return;
+
   if (lot.currency === 'diamond') {
     if ((state.diamonds || 0) < lot.price) return;
     state.diamonds -= lot.price;
   } else {
     if (state.gold < lot.price) return;
     state.gold -= lot.price;
+    trackGoldSpent(lot.price);
   }
-  addToBag({ ...item, uid: Date.now() + Math.random() });
+  const bagItem = migrateItem({ ...item, uid: Date.now() + Math.random() });
+  addToBag(bagItem);
+  recordItemDiscovered(bagItem);
   lot.sold = true;
+  if (item.rarity === 'legendary') showToast(`✨ 拍得传说：${item.name}`);
   render(); save();
 }
 

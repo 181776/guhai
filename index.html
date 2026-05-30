@@ -29,6 +29,9 @@
     <button class="nav-btn" data-page="checkin"><img src="assets/img/icons/nav/checkin.svg" alt="" class="nav-icon"><span>签到</span></button>
     <button class="nav-btn" data-page="pet"><img src="assets/img/icons/nav/pet.svg" alt="" class="nav-icon"><span>宠物</span></button>
     <button class="nav-btn debug" data-page="cheat"><img src="assets/img/icons/nav/cheat.svg" alt="" class="nav-icon"><span>金手指</span></button>
+    <div class="sidebar-footer">
+      <button type="button" class="nav-btn" id="openFeedback"><span class="nav-emoji" aria-hidden="true">💬</span><span>反馈</span></button>
+    </div>
   </nav>
 
   <main class="main">
@@ -123,9 +126,11 @@
       <div class="card">
         <div class="codex-tabs">
           <button type="button" class="codex-tab active" data-codex="monster">怪物图鉴</button>
-          <button type="button" class="codex-tab" data-codex="equip">装备图鉴</button>
+          <button type="button" class="codex-tab" data-codex="weapon">武器图鉴</button>
+          <button type="button" class="codex-tab" data-codex="gear">装备图鉴</button>
+          <button type="button" class="codex-tab" data-codex="accessory">饰品图鉴</button>
         </div>
-        <p class="footer-tip" id="codexTip">击败足够数量解锁 lore 与弱点。瞭望术天赋可识破地图上的怪格。</p>
+        <p class="footer-tip" id="codexTip">怪物图鉴 · 瞭望术天赋可识破地图上的怪格。</p>
         <ul class="codex-list" id="codexList"></ul>
         <div id="equipCodexSets" style="display:none"></div>
       </div>
@@ -168,7 +173,7 @@
       <div class="card">
         <h2>拍卖会</h2>
         <p class="auction-timer" id="auctionTimer">拍品加载中…</p>
-        <p class="footer-tip">每 20 分钟刷新。金币区打折，钻石区稀世货。</p>
+        <p class="footer-tip">每 20 分钟刷新。传说装备与宠物为钻石/金币高价区；金币区装备略有折扣。</p>
         <ul class="shop-list" id="auctionBuyList"></ul>
       </div>
       <div class="card">
@@ -216,7 +221,7 @@
     <div class="page" id="page-pet">
       <div class="card">
         <h2>宠物</h2>
-        <p class="footer-tip" style="margin-bottom:12px">宠物提供被动属性加成。地图战斗有概率捕获，设为跟随后生效。</p>
+        <p class="footer-tip" style="margin-bottom:12px">战斗宠提供小幅属性加成；生活宠可自动采集（效率为玩家的 10%）。地图战斗有概率捕获。</p>
         <div class="pet-grid" id="petGrid"></div>
       </div>
     </div>
@@ -261,6 +266,57 @@
       <p class="dialog-speaker" id="dialogSpeaker">旁白</p>
       <p class="dialog-text" id="dialogText">……</p>
       <button type="button" class="btn btn-sm" id="dialogNext" onclick="advanceDialog()">下一句</button>
+    </div>
+  </div>
+
+  <div class="feedback-modal" id="feedbackModal">
+    <div class="feedback-modal-panel px-panel">
+      <div class="feedback-modal-head">
+        <h2>💬 玩家反馈</h2>
+        <button type="button" class="btn btn-sm btn-outline" onclick="closeFeedbackModal()">关闭</button>
+      </div>
+      <p class="footer-tip">欢迎提建议、报 Bug 或聊平衡。提交会打开 GitHub Issues，并自动附带版本与角色信息。</p>
+      <label class="feedback-label" for="feedbackType">类型</label>
+      <select id="feedbackType" class="feedback-input">
+        <option value="suggest">建议</option>
+        <option value="bug">Bug</option>
+        <option value="balance">平衡</option>
+        <option value="other">其他</option>
+      </select>
+      <label class="feedback-label" for="feedbackMessage">反馈内容</label>
+      <textarea id="feedbackMessage" class="feedback-input feedback-textarea" rows="4" maxlength="2000" placeholder="请描述你的想法、遇到的问题或期望的调整……"></textarea>
+      <div class="feedback-idea-block">
+        <label class="feedback-label" for="feedbackIdeaKind">备注 · 原创投稿（选填）</label>
+        <p class="footer-tip">可原创武器、饰品、装备、天赋或成就，写下名称/效果/来历，供作者参考实装。</p>
+        <select id="feedbackIdeaKind" class="feedback-input">
+          <option value="">不投稿，仅备注</option>
+          <option value="weapon">原创 · 武器</option>
+          <option value="accessory">原创 · 饰品</option>
+          <option value="gear">原创 · 装备（防具）</option>
+          <option value="talent">原创 · 天赋</option>
+          <option value="achievement">原创 · 成就</option>
+        </select>
+        <textarea id="feedbackIdeaNote" class="feedback-input feedback-textarea feedback-idea-textarea" rows="5" maxlength="2000" placeholder="名称：&#10;品质/定位：&#10;属性或效果：&#10;来历描述：&#10;获取方式建议："></textarea>
+      </div>
+      <label class="feedback-label" for="feedbackContact">联系方式（选填）</label>
+      <input type="text" id="feedbackContact" class="feedback-input" maxlength="80" placeholder="QQ / 微信 / 邮箱，方便回访">
+      <p class="footer-tip" id="feedbackMeta">—</p>
+      <div class="feedback-modal-actions">
+        <button type="button" class="btn btn-primary" id="feedbackSubmit">提交到 GitHub</button>
+        <button type="button" class="btn btn-outline" id="feedbackCopy">复制内容</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="defeat-modal" id="defeatModal">
+    <div class="defeat-modal-panel px-panel">
+      <h2>💀 战败</h2>
+      <p id="defeatText">你在战斗中倒下……</p>
+      <p class="footer-tip">挂机已暂停。「再战」恢复 20% 生命并继续当前战斗；「撤退」生命回满但航线清剿从头开始。</p>
+      <div class="defeat-modal-actions">
+        <button type="button" class="btn btn-primary" id="defeatRetry" onclick="retryAfterDefeat()">再战</button>
+        <button type="button" class="btn btn-outline" id="defeatRetreat" onclick="retreatAfterDefeat()">撤退</button>
+      </div>
     </div>
   </div>
 
@@ -324,6 +380,7 @@
   <script src="js/logic/story-quest.js"></script>
   <script src="js/logic/craft.js"></script>
   <script src="js/logic/meta.js"></script>
+  <script src="js/logic/feedback.js"></script>
   <script src="js/logic.js"></script>
   <script src="js/logic/grid.js"></script>
   <script src="js/logic/save-io.js"></script>

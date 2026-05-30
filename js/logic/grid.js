@@ -360,7 +360,7 @@ function getRoutePreview() {
   if (!g || !gridPathValid()) return null;
   const fights = getPathFightCells().length;
   const region = getRegion();
-  const estClear = Math.floor((20 + state.level * 8) * region.goldMult);
+  const estClear = applyGoldGain(Math.floor((20 + state.level * 8) * region.goldMult));
   const treasures = g.path.filter(k => g.cells[k]?.type === 'treasure').length;
   return { fights, estClear, treasures, region: region.name };
 }
@@ -449,8 +449,9 @@ function confirmGridPath() {
   addLog('—— 航线已确认，可开始挂机 ——', true);
   const score = calcRouteScore({ treasures: true, efficiency: false });
   if (score.treasureGold) {
-    state.gold += score.treasureGold;
-    addLog(`<span class="loot">📦 路线宝箱 +${score.treasureGold} 金</span>`, true);
+    const tg = applyGoldGain(score.treasureGold);
+    state.gold += tg;
+    addLog(`<span class="loot">📦 路线宝箱 +${tg} 金</span>`, true);
   }
   openBattleModal();
   render(); save();
@@ -477,7 +478,8 @@ function completeGridMap() {
   const base = Math.floor((20 + state.level * 8) * region.goldMult);
   const streakBonus = Math.floor(base * STREAK_GOLD_BONUS * Math.min(state.mapStreak || 0, 5));
   const totalGold = base + score.bonusGold + streakBonus;
-  state.gold += totalGold;
+  const gainedGold = applyGoldGain(totalGold);
+  state.gold += gainedGold;
   state.xp += applyXpGain(Math.floor((15 + state.level * 5) * region.xpMult));
   checkLevelUp(true);
   checkLevelStory(state.level);
@@ -491,7 +493,7 @@ function completeGridMap() {
     state.bestRoutes[region.id] = { steps, date: todayStr() };
   }
 
-  addLog(`<span class="lvl">🗺 航线清剿完毕！+${totalGold} 金</span>` +
+  addLog(`<span class="lvl">🗺 航线清剿完毕！+${gainedGold} 金</span>` +
     (score.bonusGold ? ` <span class="loot">(捷径 +${score.bonusGold})</span>` : '') +
     (streakBonus ? ` <span class="loot">(连胜 +${streakBonus})</span>` : ''), true);
   const summary = formatBattleStatsSummary();
@@ -540,7 +542,7 @@ function spawnPathMonster() {
     def: Math.floor((2 + lv * 2) * (isBoss ? 1.2 : (isElite ? 1.1 : 1))),
     spAtk: 4 + lv * 2, spDef: 2 + lv * 2,
     speed: Math.max(1, 5 + lv + speedMod + (isBoss ? 2 : 0) + (isElite ? 1 : 0)),
-    gold: Math.floor((10 + lv * 5) * r.goldMult * (isBoss ? 1.8 : 1) * (isElite ? (COMBAT?.eliteGoldMult || 1.35) : 1)),
+    gold: applyGoldGain(Math.floor((10 + lv * 5) * r.goldMult * (isBoss ? 1.8 : 1) * (isElite ? (COMBAT?.eliteGoldMult || 1.35) : 1))),
     xp: Math.floor((15 + lv * 10) * r.xpMult * (isBoss ? 1.5 : 1) * (isElite ? 1.2 : 1)),
     regionId: r.id,
     sourceCell: cellKey,
