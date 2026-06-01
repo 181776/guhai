@@ -292,6 +292,7 @@ function battleTick() {
     if (phase === 'player') {
       dealPlayerDamage(m, s, Math.random() < 0.25);
     } else {
+      if (typeof tickMonsterParalyze === 'function' && tickMonsterParalyze(m)) continue;
       const useSpecial = Math.random() < 0.2;
       const playerDef = state.battleDebuff?.untilMonsterUid === m.uid
         ? Math.max(1, Math.floor(s.def * 0.82))
@@ -328,9 +329,9 @@ function battleTick() {
       trackBattleStat('bossKills', 1);
     }
     onBattleWin(m.isBoss, m.regionId);
-    addLog(`✔ 击败 ${m.name}！<span class="loot">+${m.gold}金 +${m.xp}经验</span>`);
+    addLog(`✔ 击败 ${m.name}！<span class="loot">+${formatCoin(m.gold)} +${m.xp}经验</span>`);
     if (typeof showFloatReward === 'function') {
-      showFloatReward(`+${m.gold} 金`, 'gold', document.getElementById('monsterSprite'));
+      showFloatReward(`+${formatCoin(m.gold)}`, 'gold', document.getElementById('monsterSprite'));
       showFloatReward(`+${m.xp} 经验`, 'xp', document.getElementById('playerSprite'));
     }
     if (hasTalent('t_killheal')) { healPercent(0.08); addLog('<span class="reflect">嗜血本能回复 8% 生命</span>'); }
@@ -341,6 +342,7 @@ function battleTick() {
         addLog(`<span class="drop">📦 掉落：${d.name}</span>`);
       }
     healPercent(0.2); checkLevelUp(); endBattleBlock();
+    restoreMpFull();
     const wasBoss = m.isBoss;
     const bossRegion = m.regionId;
     state.monster = null;
@@ -372,7 +374,8 @@ function checkLevelUp(silent) {
     state.xpNeed = Math.floor(state.xpNeed * 1.5);
     for (const k of Object.keys(LEVEL_GROWTH)) state.baseStats[k] += LEVEL_GROWTH[k];
     state.currentHp = calcStats().maxHp;
-    if (!silent) addLog(`<span class="lvl">🎉 升级 Lv.${state.level}！生命回满</span>`);
+    restoreMpFull();
+    if (!silent) addLog(`<span class="lvl">🎉 升级 Lv.${state.level}！生命与精力回满</span>`);
     checkLevelStory(state.level);
     checkAchievements();
     if (typeof checkStoryChapterTasks === 'function') checkStoryChapterTasks();
@@ -441,7 +444,7 @@ function doLifeSkill(id) {
   checkLevelUp(true);
   checkAchievements();
   document.getElementById('lifeToast').textContent =
-    `${skill.icon} ${skill.msg}！获得 ${skill.mat.name} ×1，+${g} 金，+${xpGain} 经验 · 生活点 +1`;
+    `${skill.icon} ${skill.msg}！获得 ${skill.mat.name} ×1，+${formatCoin(g)}，+${xpGain} 经验 · 生活点 +1`;
   render(); save();
 }
 

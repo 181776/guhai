@@ -45,7 +45,7 @@ const ACHIEVEMENTS = [
   { id: 'a_lv5', name: '气段初稳', desc: '达到 Lv.5', check: s => s.level >= 5, reward: { gold: 80 } },
   { id: 'a_lv10', name: '试炼在望', desc: '达到 Lv.10', check: s => s.level >= 10, reward: { diamonds: 1 } },
   { id: 'a_pet3', name: '百兽同行', desc: '捕获 3 只宠物', check: s => (s.pets || []).length >= 3, reward: { gold: 150 } },
-  { id: 'a_craft5', name: '巧手匠心', desc: '合成消耗品 5 次', check: s => (s.totalCrafts || 0) >= 5, reward: { lifeSp: 2 } },
+  { id: 'a_craft5', name: '巧手匠心', desc: '材料合成 5 次', check: s => (s.totalCrafts || 0) >= 5, reward: { lifeSp: 2 } },
   { id: 'a_combo5', name: '连战连捷', desc: '单航线连击达 5', check: s => (s.maxCombo || 0) >= 5, reward: { gold: 100 } },
   { id: 'a_streak3', name: '三连胜', desc: '连续清剿 3 条航线', check: s => (s.mapStreak || 0) >= 3, reward: { diamonds: 1 } },
   { id: 'a_ruins', name: '踏入遗迹', desc: '进入古代遗迹', check: s => !!(s.storyFlags || {})['ch_ruins_enter'], reward: { gold: 120 } },
@@ -53,7 +53,16 @@ const ACHIEVEMENTS = [
   { id: 'a_codex5', name: '博闻强识', desc: '解锁 5 种怪物图鉴', check: s => Object.keys(s.codex || {}).filter(k => (s.codex[k] || 0) > 0).length >= 5, reward: { gold: 80 } },
   { id: 'a_first_death', name: '早晚给你来一拳', desc: '主角首次战败倒下', check: s => (s.totalDeaths || 0) >= 1, noReward: true,
     memorialNote: '在v3.2版本，死亡是没惩罚可以无限续杯的，以及你猜我为什么要给你一拳' },
-  { id: 'a_gold_spent', name: '家财万贯', desc: '累计花费 10000 金币', check: s => (s.totalGoldSpent || 0) >= 10000, noReward: true },
+  { id: 'a_gold_spent', name: '家财万贯', desc: '累计花费 10000 古海币', check: s => (s.totalGoldSpent || 0) >= 10000, noReward: true },
+  { id: 'a_threadbare', name: '命悬一线', desc: '血量低于 10% 时遭遇 Boss', check: s => !!(s.flags || {}).bossLowHp, reward: { gold: 150, diamonds: 1 } },
+  { id: 'a_mp20', name: '初聚真气', desc: '最大精力达到 20', check: s => calcMaxMp(s.level) >= 20, reward: { gold: 100 } },
+  { id: 'a_mp_fail', name: '力竭之时', desc: '精力不足导致武功未能发动', check: s => (s.totalMpFails || 0) >= 1, reward: { gold: 50 } },
+  { id: 'a_benglei5', name: '雷行天下', desc: '崩雷绝成功发动 5 次', check: s => ((s.martialTriggers || {}).ma_benglei || 0) >= 5, reward: { gold: 200, diamonds: 1 } },
+  { id: 'a_martial_full', name: '满栏修行', desc: '学满当前所有武功栏位', check: s => {
+    const slots = getMartialSlotCount(s.level);
+    return slots > 0 && (s.martialArts || []).length >= slots;
+  }, reward: { lifeSp: 2 } },
+  { id: 'a_power1000', name: '炉火纯青', desc: '综合战力达到 1000', check: s => calcCombatPower(s) >= 1000, reward: { diamonds: 2 } },
 ];
 
 const BOUNTY_POOL = [

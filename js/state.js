@@ -22,6 +22,8 @@ const DEFAULT_STATE = {
   achievements: {}, bounty: null, lastSaveTime: 0, playerStatus: null,
   storyChapter: 'prologue', regionRoutes: {}, regionBossKills: {}, completedChapters: [],
   lifePetCd: {}, pendingDefeatRetry: false,
+  martialArts: [], martialCodex: {}, martialTriggers: {}, totalMpFails: 0,
+  currentMp: null, flags: {},
 };
 
 function emptyStats() { return { hp: 0, atk: 0, def: 0, spAtk: 0, spDef: 0, speed: 0, critRate: 0, critDmg: 0 }; }
@@ -105,6 +107,13 @@ function migrate(data) {
   d.activeLifePet = data.activeLifePet ?? d.activeLifePet ?? null;
   d.lifePetCd = data.lifePetCd || {};
   d.pendingDefeatRetry = !!data.pendingDefeatRetry;
+  d.martialArts = data.martialArts || [];
+  d.martialCodex = data.martialCodex || {};
+  d.martialTriggers = data.martialTriggers || {};
+  d.totalMpFails = data.totalMpFails || 0;
+  d.flags = data.flags || {};
+  d.currentMp = data.currentMp != null ? data.currentMp : calcMaxMp(d.level);
+  clampMp(d);
   d.lastCheckin = data.lastCheckin || '';
   d.checkinStreak = data.checkinStreak || 0;
   d.diamonds = data.diamonds || 0;
@@ -202,11 +211,15 @@ function sumStats(list) {
 
 function getSetCounts(st = state) {
   const counts = {};
-  for (const slot of SET_SLOTS) {
+  for (const slot of [...SET_SLOTS, 'accessory']) {
     const item = st.equip[slot];
     if (item?.setId) counts[item.setId] = (counts[item.setId] || 0) + 1;
   }
   return counts;
+}
+
+function getSetPieceNeed(setId) {
+  return SET_DEFS[setId]?.pieceCount || 4;
 }
 
 function getActiveSetBonuses(st = state) {
@@ -216,9 +229,10 @@ function getActiveSetBonuses(st = state) {
   for (const [setId, count] of Object.entries(counts)) {
     const def = SET_DEFS[setId];
     if (!def) continue;
-    const entry = { setId, name: def.name, count, active: count >= 4, desc: def.desc };
+    const need = getSetPieceNeed(setId);
+    const entry = { setId, name: def.name, count, need, active: count >= need, desc: def.desc };
     active.push(entry);
-    if (count >= 4) {
+    if (count >= need) {
       const b = def.bonus;
       if (b.stats) for (const k of Object.keys(stats)) stats[k] += b.stats[k] || 0;
       critRate += b.critRate || 0;
@@ -234,16 +248,17 @@ function calcStats(st = state) {
   const sk = sumStats(st.skills);
   const setB = getActiveSetBonuses(st);
   const tb = getTalentBonuses(st);
+  const mb = typeof getMartialBonuses === 'function' ? getMartialBonuses(st) : emptyStats();
   const pb = typeof getPetBonuses === 'function' ? getPetBonuses(st) : emptyStats();
   const qk = typeof getQinglanStatBonus === 'function' ? getQinglanStatBonus(st) : emptyStats();
   const qm = typeof getQinglanMult === 'function' ? getQinglanMult(st) : 1;
   const lv = st.level - 1;
   const bc = st.baseCrit || BASE_CRIT;
   const sum = (k, grow) => Math.floor(
-    (st.baseStats[k] + eq[k] + sk[k] + setB.stats[k] + tb.bonus[k] + pb[k] + qk[k] + lv * grow) * qm
+    (st.baseStats[k] + eq[k] + sk[k] + setB.stats[k] + tb.bonus[k] + mb[k] + pb[k] + qk[k] + lv * grow) * qm
   );
   let maxHp = sum('hp', LEVEL_GROWTH.hp);
-  let critRate = bc.rate + eq.critRate + sk.critRate + setB.critRate + tb.bonus.critRate + pb.critRate;
+  let critRate = bc.rate + eq.critRate + sk.critRate + setB.critRate + tb.bonus.critRate + mb.critRate + pb.critRate;
   let critDmg = (bc.dmg + eq.critDmg + sk.critDmg + setB.critDmg + tb.bonus.critDmg + pb.critDmg) * tb.critDmgMult;
   let atk = sum('atk', LEVEL_GROWTH.atk);
   if (st.battleBuff?.atkMult) atk = Math.floor(atk * st.battleBuff.atkMult);
@@ -268,9 +283,25 @@ function calcStats(st = state) {
 
 function clampHp() { const s = calcStats(); state.currentHp = Math.min(s.maxHp, Math.max(0, state.currentHp ?? s.maxHp)); }
 
+function clampMp(st = state) {
+  const max = calcMaxMp(st.level);
+  st.currentMp = Math.min(max, Math.max(0, st.currentMp ?? max));
+}
+
+function restoreMpFull(st = state) {
+  st.currentMp = calcMaxMp(st.level);
+}
+
+function getCurrentMp(st = state) {
+  clampMp(st);
+  return st.currentMp;
+}
+
 function calcCombatPower(st = state) {
   const s = calcStats(st);
-  return Math.floor(sumSixStats(s) * getSpiritRootMult(st));
+  const mp = calcMaxMp(st.level);
+  const base = sumSixStats(s) + s.critRate * 500 + s.critDmg * 200 + mp;
+  return Math.floor(base * getSpiritRootMult(st));
 }
 
 function healPercent(pct) { const s = calcStats(); state.currentHp = Math.min(s.maxHp, (state.currentHp ?? s.maxHp) + Math.floor(s.maxHp * pct)); }

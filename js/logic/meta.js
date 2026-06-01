@@ -90,7 +90,8 @@ function handleBattleDefeat() {
   state.battleDebuff = null;
   state.playerStatus = null;
   endBattleBlock();
-  addLog(`<span class="dmg">💀 战败！损失 ${goldLoss} 金、${xpLoss} 经验（等级不变）</span>`, true);
+  restoreMpFull();
+  addLog(`<span class="dmg">💀 战败！损失 ${formatCoin(goldLoss)}、${xpLoss} 经验（等级不变）</span>`, true);
 
   showDefeatModal(goldLoss, xpLoss);
   if (typeof openBattleModal === 'function') openBattleModal();
@@ -154,7 +155,7 @@ function showDefeatModal(goldLoss, xpLoss) {
   const text = document.getElementById('defeatText');
   if (!el) return;
   if (text) {
-    text.textContent = `你在战斗中倒下，损失了 ${goldLoss} 金币与 ${xpLoss} 点经验。等级未降低，但挂机已暂停。`;
+    text.textContent = `你在战斗中倒下，损失了 ${formatCoin(goldLoss)} 与 ${xpLoss} 点经验。等级未降低，但挂机已暂停。`;
   }
   el.classList.add('show');
 }
@@ -211,7 +212,7 @@ function claimBounty() {
   state.gold += applyGoldGain(b.gold);
   state.xp += applyXpGain(b.xp);
   checkLevelUp(true);
-  showToast(`📜 悬赏奖励 +${b.gold} 金 +${b.xp} 经验`);
+  showToast(`📜 悬赏奖励 +${formatCoin(b.gold)} +${b.xp} 经验`);
   checkAchievements();
   render(); save();
   return true;

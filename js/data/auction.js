@@ -54,7 +54,7 @@ function pickAuctionGoldItem(st) {
     item: { ...tpl, uid: 'auc_' + Date.now() + Math.random() },
     currency: 'gold',
     price: Math.max(10, Math.floor(tpl.price * discount)),
-    lotTag: '金币区',
+    lotTag: '古海币区',
   };
 }
 

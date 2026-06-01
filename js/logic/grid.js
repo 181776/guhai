@@ -443,7 +443,7 @@ function confirmGridPath() {
   const preview = getRoutePreview();
   if (preview) {
     document.getElementById('gridStatus').textContent =
-      `航线锁定 · 预计 ${preview.fights} 战 · 清剿约 ${preview.estClear} 金` +
+      `航线锁定 · 预计 ${preview.fights} 战 · 清剿约 ${formatCoin(preview.estClear)}` +
       (preview.treasures ? ` · 宝箱 ${preview.treasures}` : '');
   }
   addLog('—— 航线已确认，可开始挂机 ——', true);
@@ -451,7 +451,7 @@ function confirmGridPath() {
   if (score.treasureGold) {
     const tg = applyGoldGain(score.treasureGold);
     state.gold += tg;
-    addLog(`<span class="loot">📦 路线宝箱 +${tg} 金</span>`, true);
+    addLog(`<span class="loot">📦 路线宝箱 +${formatCoin(tg)}</span>`, true);
   }
   openBattleModal();
   render(); save();
@@ -493,7 +493,7 @@ function completeGridMap() {
     state.bestRoutes[region.id] = { steps, date: todayStr() };
   }
 
-  addLog(`<span class="lvl">🗺 航线清剿完毕！+${gainedGold} 金</span>` +
+  addLog(`<span class="lvl">🗺 航线清剿完毕！+${formatCoin(gainedGold)}</span>` +
     (score.bonusGold ? ` <span class="loot">(捷径 +${score.bonusGold})</span>` : '') +
     (streakBonus ? ` <span class="loot">(连胜 +${streakBonus})</span>` : ''), true);
   const summary = formatBattleStatsSummary();
@@ -562,6 +562,16 @@ function spawnPathMonster() {
     addLog(`<span class="sys">特性：${state.monster.trait.name}（${state.monster.trait.desc}）</span>`, true);
   }
   logTurnOrder(calcStats(), state.monster);
+  if (typeof applyMartialBattleStart === 'function') applyMartialBattleStart(state.monster);
+  if (isBoss) {
+    const s = calcStats();
+    const hpPct = s.maxHp ? (state.currentHp ?? s.maxHp) / s.maxHp : 1;
+    if (hpPct < 0.1) {
+      if (!state.flags) state.flags = {};
+      state.flags.bossLowHp = true;
+      checkAchievements();
+    }
+  }
   flashMonsterEntrance();
   return true;
 }

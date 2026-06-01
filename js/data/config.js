@@ -1,4 +1,11 @@
-const GAME_VERSION = '3.4';
+const GAME_VERSION = '3.6';
+
+/** v3.5 货币名称 */
+const CURRENCY_NAME = '古海币';
+function formatCoin(amount) {
+  const n = Math.max(0, Math.floor(amount || 0));
+  return `${n} ${CURRENCY_NAME}`;
+}
 
 /** v3.4 传说装备获取渠道 */
 const LEGENDARY_SOURCES = {
@@ -12,7 +19,12 @@ const FEEDBACK = {
   projectName: '古海大陆',
 };
 
-/** v3.3 经济 · 战败惩罚 */
+/** v3.6 精力 MP：Lv.1 为 0，每升 1 级 +5；战后回满 */
+const MP = { perLevel: 5 };
+function calcMaxMp(level) {
+  return Math.max(0, (level - 1) * MP.perLevel);
+}
+
 const ECONOMY = {
   goldGainMult: 0.3,
   defeatGoldPct: 0.08,
@@ -21,9 +33,10 @@ const ECONOMY = {
   defeatRetryHpPct: 0.2,
 };
 
-/** 品质标签与边框 class */
+/** 品质标签 · 普通(白) 精良(绿) 稀有(蓝) 史诗(紫) 传说(橙) */
 const RARITY_LABELS = {
   common: '普通',
+  fine: '精良',
   rare: '稀有',
   epic: '史诗',
   legendary: '传说',
@@ -64,7 +77,7 @@ const SET_SLOTS = ['head', 'body', 'legs', 'feet'];
 const ALL_SLOTS = ['weapon', ...SET_SLOTS, 'accessory'];
 const LEVEL_GROWTH = { hp: 8, atk: 2, def: 2, spAtk: 2, spDef: 2, speed: 1 };
 const BASE_CRIT = { rate: 0.05, dmg: 0.30 };
-const MATERIAL_SELL = { mat1: 6, mat2: 6, mat3: 8, mat4: 12, mat5: 14, mat6: 16, mat_wood: 5, mat_fish: 7, mat_ore: 9 };
+const MATERIAL_SELL = { mat1: 6, mat2: 6, mat3: 8, mat4: 12, mat5: 14, mat6: 16, mat_wood: 5, mat_fish: 7, mat_ore: 9, mat_wood_b: 35, mat_fish_b: 42, mat_ore_b: 55, mat_pack1: 60 };
 
 /** v3.0 战斗常量（元系统见 js/data/meta.js） */
 const COMBAT = {

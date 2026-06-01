@@ -57,6 +57,7 @@ function syncTopBarNumbers() {
   popStatNum('topGold', state.gold);
   popStatNum('topDiamond', state.diamonds || 0);
   popStatNum('topHp', state.currentHp ?? 0);
+  popStatNum('topMp', getCurrentMp());
   const s = calcStats();
   popStatNum('topXp', `${state.xp}/${state.xpNeed}`);
 }

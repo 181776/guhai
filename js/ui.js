@@ -29,6 +29,9 @@ function renderTopBar() {
   const root = getSpiritRoot();
   const hpPct = s.maxHp ? (state.currentHp / s.maxHp * 100).toFixed(0) : 100;
   const xpPct = (state.xp / state.xpNeed * 100).toFixed(0);
+  const maxMp = calcMaxMp(state.level);
+  const mp = getCurrentMp();
+  const mpPct = maxMp ? (mp / maxMp * 100).toFixed(0) : 0;
   const region = getRegion();
   const battlePet = state.activeBattlePet ? PETS.find(p => p.id === state.activeBattlePet) : null;
   const lifePet = state.activeLifePet ? PETS.find(p => p.id === state.activeLifePet) : null;
@@ -41,15 +44,16 @@ function renderTopBar() {
   const comboTag = combo > 0 ? `<span class="combo-badge" title="连击加成">🔥×${combo}</span>` : '';
   document.getElementById('topBar').innerHTML = `
     <span><b>${esc(state.name)}</b> · Lv.${state.level}</span>
-    <span class="combat-power" title="综合战力">⚔ ${power}</span>
+    <span class="combat-power" title="（六维和+暴率×500+爆伤×200+精力）×灵根">⚔ ${power}</span>
     <span class="spirit-root-badge" title="${esc(root.desc)}">🌱 ${root.name}</span>
     <span class="weather-badge" title="${esc(weather.tip)}">${weather.icon} ${weather.name}</span>
     <span style="color:var(--text-muted)">📍 ${region.name}</span>
     ${comboTag}
     ${petTag ? `<span title="战斗/生活宠物">${petTag}</span>` : ''}
     <div class="bar-wrap">HP <div class="bar"><div class="bar-fill hp" style="width:${hpPct}%"></div></div> <span id="topHp" class="stat-num">${state.currentHp}</span>/${s.maxHp}</div>
+    <div class="bar-wrap">MP <div class="bar"><div class="bar-fill mp" style="width:${mpPct}%"></div></div> <span id="topMp" class="stat-num">${mp}</span>/${maxMp}</div>
     <div class="bar-wrap">XP <div class="bar"><div class="bar-fill xp" style="width:${xpPct}%"></div></div> <span id="topXp" class="stat-num">${state.xp}/${state.xpNeed}</span></div>
-    <span class="gold">💰 <span id="topGold" class="stat-num">${state.gold}</span></span>
+    <span class="gold" title="${CURRENCY_NAME}">💰 <span id="topGold" class="stat-num">${state.gold}</span> ${CURRENCY_NAME}</span>
     <span class="diamond">💎 <span id="topDiamond" class="stat-num">${state.diamonds || 0}</span></span>`;
   if (typeof syncTopBarNumbers === 'function') syncTopBarNumbers();
 }
@@ -199,7 +203,7 @@ function renderCheckin() {
     let extra = '';
     if (nextStreak >= 7) extra = '，+2 钻石';
     else if (nextStreak >= 4) extra = '，+1 钻石';
-    statusEl.textContent = `签到可得 ${previewGold} 金币${extra}` +
+    statusEl.textContent = `签到可得 ${formatCoin(previewGold)}${extra}` +
       (nextStreak === 3 && !state.pets.includes('p_slime') ? '，连续第 3 天额外获得小史莱姆宠物' : '');
   }
 }
@@ -238,7 +242,7 @@ function renderAchievements() {
     const region = REGIONS.find(r => r.id === b.regionId);
     bountyEl.innerHTML = `
       <p class="bounty-desc">今日目标 · ${region?.name || ''} · ${b.label} ${b.progress}/${b.target}</p>
-      <p class="item-desc">奖励 ${b.gold} 金 + ${b.xp} 经验</p>
+      <p class="item-desc">奖励 ${formatCoin(b.gold)} + ${b.xp} 经验</p>
       <button type="button" class="btn btn-sm" onclick="claimBounty()" ${b.claimed ? 'disabled' : (!done ? 'disabled' : '')}>${b.claimed ? '已领取' : (done ? '领取悬赏' : '进行中')}</button>`;
   }
   const listEl = document.getElementById('achievementsList');
@@ -249,7 +253,7 @@ function renderAchievements() {
   listEl.innerHTML = ACHIEVEMENTS.map(a => {
     const got = !!state.achievements?.[a.id];
     const rw = [];
-    if (a.reward?.gold) rw.push(`${a.reward.gold}金`);
+    if (a.reward?.gold) rw.push(formatCoin(a.reward.gold));
     if (a.reward?.diamonds) rw.push(`${a.reward.diamonds}💎`);
     if (a.reward?.lifeSp) rw.push(`${a.reward.lifeSp}生活点`);
     const rwText = a.noReward
@@ -272,11 +276,13 @@ function renderSetBonus() {
   return Object.keys(SET_DEFS).map(setId => {
     const def = SET_DEFS[setId];
     const count = counts[setId] || 0;
-    const active = count >= 4;
+    const need = getSetPieceNeed(setId);
+    const active = count >= need;
+    const slotHint = need === 2 ? '（衣甲·饰品）' : '（头饰·衣甲·护腿·战靴）';
     return `<div class="set-bonus-box${active ? '' : ' inactive'}">
       <h3>${def.name} ${active ? '✓ 已激活' : ''}</h3>
       <p>${def.desc}</p>
-      <div class="set-progress">进度：${count} / 4 件（头饰·衣甲·护腿·战靴）</div>
+      <div class="set-progress">进度：${count} / ${need} 件${slotHint}</div>
     </div>`;
   }).join('');
 }
@@ -285,7 +291,7 @@ function renderEquipCodexSets() {
   const el = document.getElementById('equipCodexSets');
   if (!el) return;
   el.innerHTML = `<h3 class="bag-section-title">套装效果</h3>${renderSetBonus()}
-    <p class="footer-tip">集齐同套装四件（头饰·衣甲·护腿·战靴）激活效果；进度随当前装备更新</p>`;
+    <p class="footer-tip">四件套或二件套凑齐即激活；进度随当前装备更新</p>`;
 }
 
 function renderCharStory() {
@@ -349,7 +355,7 @@ function renderCharStory() {
 
   const rw = ch.rewards || {};
   const rwTxt = [
-    rw.gold ? `${rw.gold} 金` : '',
+    rw.gold ? formatCoin(rw.gold) : '',
     rw.xp ? `${rw.xp} 经验` : '',
     rw.diamonds ? `${rw.diamonds} 💎` : '',
   ].filter(Boolean).join(' · ');
@@ -408,7 +414,7 @@ function renderChar() {
         <div class="char-name">${esc(state.name)}</div>
         <div class="char-title">${esc(state.title)}</div>
       </div>
-      <div class="combat-power-box">战力 <span class="combat-power-lg">${power}</span></div>
+      <div class="combat-power-box" title="（六维和+暴率×500+爆伤×200+精力）×灵根">战力 <span class="combat-power-lg">${power}</span></div>
     </div>
     <div class="char-bio">${esc(state.bio || '暂无简介')}</div>
     <div class="char-meta-row">
@@ -416,6 +422,7 @@ function renderChar() {
     </div>`;
   document.getElementById('charStats').innerHTML = `
     <div class="stat-item"><b>HP</b><span>${state.currentHp}/${s.maxHp}</span></div>
+    <div class="stat-item"><b>精力</b><span>${getCurrentMp()}/${calcMaxMp(state.level)}</span></div>
     <div class="stat-item"><b>物攻</b><span>${s.atk}</span></div>
     <div class="stat-item"><b>物防</b><span>${s.def}</span></div>
     <div class="stat-item"><b>特攻</b><span>${s.spAtk}</span></div>
@@ -441,21 +448,55 @@ function renderChar() {
           <div class="item-desc">${statLabel(item)}${item.setId ? ' · ' + SET_DEFS[item.setId]?.name : ''}</div></span>
           <button class="btn btn-sm" onclick="equipFromPicker('${item.uid}')">装备</button></li>`).join('');
   } else picker.style.display = 'none';
+}
 
-  const skillEl = document.getElementById('skillDisplay');
-  skillEl.innerHTML = state.skills.length === 0 ? '<li class="skill-empty">暂无武功</li>' :
-    state.skills.map(sk => `<li class="${rarityClass(sk)}"><span class="item-info"><span class="${badgeRarityClass(sk)}">${getRarityLabel(sk)} · ${esc(sk.name)}</span>
-      <div class="item-desc">${statLabel(sk)}</div></span></li>`).join('');
-
-  document.getElementById('talentDisplay').innerHTML = TALENTS.map(t => {
-    const owned = hasTalent(t.id);
-    return `<li><span class="item-info">
-      <span class="badge talent">${esc(t.name)}</span>
-      <div class="item-desc">${esc(t.desc)}</div></span>
-      ${owned ? '<span class="badge common">已觉醒</span>' :
-        `<button class="btn btn-sm" onclick="unlockTalent('${t.id}')" ${state.gold < t.price ? 'disabled' : ''}>觉醒 ${t.price}金</button>`}
-    </li>`;
+function renderMartial() {
+  const tip = document.getElementById('martialSlotTip');
+  const learnEl = document.getElementById('martialLearnList');
+  const activeEl = document.getElementById('martialActiveList');
+  if (!learnEl) return;
+  const slots = getMartialSlotCount();
+  const learned = state.martialArts || [];
+  if (tip) {
+    tip.textContent = slots > 0
+      ? `武功栏位 ${learned.length}/${slots} · 升级解锁空栏（非秘籍），每 5 级 +1 栏 · 有特效武功消耗精力`
+      : '达到 Lv.5 解锁首个武功栏位';
+  }
+  learnEl.innerHTML = MARTIAL_ARTS.map(ma => {
+    const owned = hasLearnedMartial(ma.id);
+    const full = learned.length >= slots && !owned;
+    const locked = state.level < MARTIAL_SLOT_LEVEL;
+    const canBuy = !owned && !full && !locked && state.gold >= ma.price;
+    const mpTag = ma.effect ? ` · 触发耗精力 ${getMartialMpCost(ma)}` : ' · 常驻属性，不耗精力';
+    return `<li class="${rarityClass(ma)}"><span class="item-info">
+      <span class="${badgeRarityClass(ma)}">${getRarityLabel(ma)}</span> <b>${esc(ma.name)}</b>
+      <div class="item-desc">${esc(ma.desc)}${mpTag}</div>
+      <div class="footer-tip">${esc(ma.lore || '')}</div></span>
+      <button class="btn btn-sm" onclick="learnMartialArt('${ma.id}')" ${owned ? 'disabled' : (canBuy ? '' : 'disabled')}>
+        ${owned ? '已学' : locked ? 'Lv.5解锁栏位' : full ? '栏满' : formatCoin(ma.price)}</button></li>`;
   }).join('');
+  if (activeEl) {
+    if (slots <= 0) {
+      activeEl.innerHTML = '<li class="skill-empty">达到 Lv.5 解锁首个武功栏位</li>';
+    } else {
+      const rows = [];
+      for (let i = 0; i < slots; i++) {
+        const id = learned[i];
+        if (id) {
+          const ma = getMartialArt(id);
+          if (!ma) continue;
+          const mpTag = ma.effect ? ` · 精力 ${getMartialMpCost(ma)}` : '';
+          rows.push(`<li class="${rarityClass(ma)}"><span class="item-info">
+            <span class="badge common">栏位 ${i + 1}</span>
+            <span class="${badgeRarityClass(ma)}">${getRarityLabel(ma)}</span> <b>${esc(ma.name)}</b>
+            <div class="item-desc">${esc(ma.desc)}${mpTag}</div></span></li>`);
+        } else {
+          rows.push(`<li class="skill-empty"><span class="badge common">栏位 ${i + 1}</span> 空 · 可从上方学习武功填入</li>`);
+        }
+      }
+      activeEl.innerHTML = rows.join('');
+    }
+  }
 }
 
 function renderSlot(slot, isSet) {
@@ -516,9 +557,16 @@ function renderBattle() {
   const power = calcCombatPower();
   const debuffTag = state.battleDebuff ? ' · 破甲中' : '';
   const shieldTag = state.playerStatus?.shieldHp ? ` · 盾${state.playerStatus.shieldHp}` : '';
-  document.getElementById('playerStats').textContent = `战力${power} · 物攻${s.atk} 物防${s.def} 速度${s.speed}${debuffTag}${shieldTag}`;
+  const maxMp = calcMaxMp(state.level);
+  const mp = getCurrentMp();
+  const mpPct = maxMp ? (mp / maxMp * 100).toFixed(0) : 0;
+  document.getElementById('playerStats').textContent = `战力${power} · 物攻${s.atk} 物防${s.def} 速度${s.speed} · 精力${mp}/${maxMp}${debuffTag}${shieldTag}`;
   document.getElementById('playerHpBar').style.width = hpPct + '%';
   document.getElementById('playerHpText').textContent = `${state.currentHp} / ${s.maxHp}`;
+  const mpBar = document.getElementById('playerMpBar');
+  const mpText = document.getElementById('playerMpText');
+  if (mpBar) mpBar.style.width = mpPct + '%';
+  if (mpText) mpText.textContent = `${mp} / ${maxMp}`;
 
   const pSprite = document.getElementById('playerSprite');
   if (pSprite) pSprite.innerHTML = unitPortraitHtml(ASSETS.characters.player, state.name, '⚔️', 'unit-sprite');
@@ -580,15 +628,15 @@ function renderBag() {
   if (materials.length) {
     html += '<div class="bag-section-title">📦 材料</div><ul class="equip-list">';
     html += materials.map(item => `<li class="${rarityClass(item)}"><span class="item-info"><span class="${badgeRarityClass(item)}">${esc(item.name)}</span> × ${item.count || 1}
-      <div class="item-desc">单价 ${MATERIAL_SELL[item.id] || 5} 金</div></span>
+      <div class="item-desc">单价 ${formatCoin(MATERIAL_SELL[item.id] || 5)}</div></span>
       <button class="btn btn-sm btn-sell" onclick="sellOneMaterial('${item.uid}')">卖×1</button>
-      <button class="btn btn-sm btn-sell" onclick="sellItem('${item.uid}')">全卖 ${getSellPrice(item)}金</button></li>`).join('');
+      <button class="btn btn-sm btn-sell" onclick="sellItem('${item.uid}')">全卖 ${formatCoin(getSellPrice(item))}</button></li>`).join('');
     html += '</ul>';
   }
   if (gear.length) {
     html += '<div class="bag-section-title">⚔ 装备</div><ul class="equip-list">';
     html += gear.map(item => `<li class="${rarityClass(item)}"><span class="item-info"><span class="${badgeRarityClass(item)}">${getRarityLabel(item)}</span> ${SLOT_NAMES[item.slot]} ${esc(item.name)}
-      <div class="item-desc">${statLabel(item)} · 售价 ${getSellPrice(item)} 金</div></span>
+      <div class="item-desc">${statLabel(item)} · 售价 ${formatCoin(getSellPrice(item))}</div></span>
       <button class="btn btn-sm btn-sell" onclick="sellItem('${item.uid}')">贩卖</button></li>`).join('');
     html += '</ul>';
   }
@@ -602,10 +650,10 @@ function renderBag() {
 }
 
 function getShopItems() {
-  if (shopTab === 'weapon') return WEAPONS;
-  if (shopTab === 'set') return [...SET_ITEMS, ...GEAR_ITEMS];
-  if (shopTab === 'manual') return MANUALS;
-  return ACCESSORIES;
+  if (shopTab === 'weapon') return WEAPONS.filter(isShopItem);
+  if (shopTab === 'set') return [...SET_ITEMS.filter(isShopItem), ...GEAR_ITEMS.filter(isShopItem)];
+  if (shopTab === 'manual') return MANUALS.filter(isShopItem);
+  return ACCESSORIES.filter(isShopItem);
 }
 
 function renderLife() {
@@ -623,27 +671,24 @@ function renderLife() {
     const xpShow = skill.xp + bonus.xpBonus;
     return `<div class="life-card">
       <h3>${skill.icon} ${skill.name}</h3>
-      <p>${skill.msg}，获得 <b>${skill.mat.name}</b><br>金币 ${gMin}~${gMax} · 经验 +${xpShow}</p>
+      <p>${skill.msg}，获得 <b>${skill.mat.name}</b><br>${CURRENCY_NAME} ${gMin}~${gMax} · 经验 +${xpShow}</p>
       <button type="button" class="btn btn-sm" data-life="${skill.id}" ${onCd ? 'disabled' : ''}>${onCd ? `冷却 ${cdLeft}s` : '进行'}</button>
       <div class="life-cd">间隔 ${(cdMs / 1000).toFixed(1)} 秒</div>
     </div>`;
   }).join('');
 
   renderLifeTree();
-  renderCraft();
 }
 
 function renderCraft() {
   const el = document.getElementById('craftList');
-  const tip = document.getElementById('craftIdleTip');
-  if (tip) tip.textContent = `挂机药囊：${getIdlePotionSummary()}`;
   if (!el) return;
   el.innerHTML = CRAFT_RECIPES.map(recipe => {
     const ok = canCraft(recipe.id);
     return `<div class="craft-card">
       <div class="craft-card-head">
         <b>${recipe.icon} ${esc(recipe.name)}</b>
-        <span class="badge ${ok ? 'epic' : 'common'}">${recipe.gold} 金</span>
+        <span class="badge ${ok ? 'epic' : 'common'}">${formatCoin(recipe.gold)}</span>
       </div>
       <p class="item-desc">${esc(recipe.desc)}</p>
       <p class="craft-mats">${formatCraftMats(recipe.mats)}</p>
@@ -787,11 +832,31 @@ function renderCodex() {
   }
 
   if (codexTab === 'gear') {
-    if (tipEl) tipEl.textContent = '装备图鉴 · 头饰、衣甲、护腿、战靴；套装四件效果见下方。';
+    if (tipEl) tipEl.textContent = '装备图鉴 · 头饰、衣甲、护腿、战靴；套装效果见下方。';
     listEl.style.display = '';
     if (setsEl) setsEl.style.display = 'block';
     renderEquipCodexSets();
     listEl.innerHTML = renderCodexEquipEntries('gear');
+    return;
+  }
+
+  if (codexTab === 'martial') {
+    if (setsEl) setsEl.style.display = 'none';
+    listEl.style.display = '';
+    if (tipEl) tipEl.textContent = '武功图鉴 · 升级解锁栏位，在「武功」页消耗古海币填入。有特效武功消耗精力。';
+    listEl.innerHTML = MARTIAL_ARTS.map(ma => {
+      const unlocked = !!(state.martialCodex || {})[ma.id] || hasLearnedMartial(ma.id);
+      const mpTag = ma.effect ? ` · 触发耗精力 ${getMartialMpCost(ma)}` : ' · 不耗精力';
+      return `<li class="codex-item${unlocked ? '' : ' locked'} ${rarityClass(ma)}">
+        <div class="codex-info" style="width:100%">
+          <b>${esc(ma.name)}</b>
+          <span class="${badgeRarityClass(ma)}">${getRarityLabel(ma)}</span>
+          <span class="badge ${unlocked ? 'epic' : 'common'}">${unlocked ? '已收录' : '未习得'}</span>
+          <p>${esc(ma.lore || ma.desc)}</p>
+          <p class="footer-tip">${esc(ma.desc)}${mpTag} · 学费 ${formatCoin(ma.price)}</p>
+        </div>
+      </li>`;
+    }).join('');
     return;
   }
 }
@@ -821,7 +886,7 @@ function renderAuction() {
     const statLine = isPet ? esc(item.desc) : statLabel(item);
     const priceLabel = lot.currency === 'diamond'
       ? `💎 ${lot.price}`
-      : `${lot.price} 金`;
+      : formatCoin(lot.price);
     const canBuy = lot.currency === 'diamond'
       ? (state.diamonds || 0) >= lot.price
       : state.gold >= lot.price;
@@ -848,7 +913,7 @@ function renderAuction() {
     const base = getSellPrice(item);
     const total = base + Math.floor(base * 0.25);
     return `<li class="${rarityClass(item)}"><span class="item-info"><span class="${badgeRarityClass(item)}">${getRarityLabel(item)}</span> ${SLOT_NAMES[item.slot]} ${esc(item.name)}
-      <div class="item-desc">${statLabel(item)} · 寄售可得约 ${total} 金${item.rarity === 'epic' ? '（史诗或得💎）' : ''}</div></span>
+      <div class="item-desc">${statLabel(item)} · 寄售可得约 ${formatCoin(total)}${item.rarity === 'epic' ? '（史诗或得💎）' : ''}</div></span>
       <button class="btn btn-sm btn-sell" onclick="consignToAuction('${item.uid}')">寄售</button></li>`;
   }).join('');
 }
@@ -861,6 +926,6 @@ function renderShop() {
     const tag = isManual ? '秘籍' : item.setId ? SET_DEFS[item.setId]?.name : (SLOT_NAMES[item.slot] || '');
     return `<li class="${rarityClass(item)}"><span class="item-info"><span class="${badgeRarityClass(item)}">${getRarityLabel(item)}</span> ${tag ? `<span class="badge common">${tag}</span>` : ''} ${esc(item.name)} · ${statLabel(item)}
       ${item.desc ? `<div class="item-desc">${esc(item.desc)}</div>` : ''}</span>
-      <button class="btn btn-sm" onclick="buyFromShop('${item.id}')" ${state.gold < item.price || owned ? 'disabled' : ''}>${owned ? '已拥有' : item.price + ' 金'}</button></li>`;
+      <button class="btn btn-sm" onclick="buyFromShop('${item.id}')" ${state.gold < item.price || owned ? 'disabled' : ''}>${owned ? '已拥有' : formatCoin(item.price)}</button></li>`;
   }).join('');
 }

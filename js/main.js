@@ -31,8 +31,8 @@ window.unlockLifeNode = unlockLifeNode;
 window.craftItem = craftItem;
 
 function render() {
-  renderTopBar(); renderChar(); renderMap(); renderBattle();
-  renderBag(); renderShop(); renderAuction(); renderLife(); renderCheckin(); renderPet(); renderCodex(); renderAchievements(); renderCheat();
+  renderTopBar(); renderChar(); renderMartial(); renderMap(); renderBattle();
+  renderBag(); renderCraft(); renderShop(); renderAuction(); renderLife(); renderCheckin(); renderPet(); renderCodex(); renderAchievements(); renderCheat();
 }
 
 document.getElementById('gridRegionTabs').addEventListener('click', e => {

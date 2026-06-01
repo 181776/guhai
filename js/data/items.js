@@ -2,24 +2,38 @@ const SET_DEFS = {
   qingfeng: {
     name: '清风套装', desc: '四件套：速度+10，特防+6，暴击率+5%',
     bonus: { stats: { speed: 10, spDef: 6 }, critRate: 0.05 },
+    pieceCount: 4,
   },
   kuangzhan: {
     name: '狂战套装', desc: '四件套：物攻+12，暴击率+8%，暴击伤害+15%',
     bonus: { stats: { atk: 12 }, critRate: 0.08, critDmg: 0.15 },
+    pieceCount: 4,
   },
   tiebi: {
     name: '铁壁套装', desc: '四件套：物防+14，HP+50',
     bonus: { stats: { def: 14, hp: 50 } },
+    pieceCount: 4,
   },
   qinglan: {
     name: '青岚套装', desc: '四件套：特攻+10，特防+8，暴击率+5%',
     bonus: { stats: { spAtk: 10, spDef: 8 }, critRate: 0.05 },
+    pieceCount: 4,
+  },
+  shujin: {
+    name: '曙烬暮华', desc: '二件套：物攻+10，暴击率+6%',
+    bonus: { stats: { atk: 10 }, critRate: 0.06 },
+    pieceCount: 2,
+  },
+  youmu: {
+    name: '幽暮冥烬', desc: '二件套：物防+10，特防+6，HP+30',
+    bonus: { stats: { def: 10, spDef: 6, hp: 30 } },
+    pieceCount: 2,
   },
 };
 
 const WEAPONS = [
   { id: 'w1', name: '木剑', slot: 'weapon', stats: { atk: 3, speed: 1 }, price: 20, rarity: 'common', desc: '新手练手' },
-  { id: 'w3', name: '铁剑', slot: 'weapon', stats: { atk: 8 }, price: 60, rarity: 'common', desc: '铁匠常备' },
+  { id: 'w3', name: '铁剑', slot: 'weapon', stats: { atk: 8 }, price: 60, rarity: 'fine', desc: '铁匠常备' },
   { id: 'w5', name: '钢剑', slot: 'weapon', stats: { atk: 14, speed: 1 }, price: 180, rarity: 'rare', desc: '百炼精钢' },
   { id: 'w7', name: '双刀', slot: 'weapon', stats: { atk: 18, speed: 3, critRate: 0.03 }, price: 260, rarity: 'rare', desc: '快攻双持，暴击+3%' },
   { id: 'w9', name: '青锋剑', slot: 'weapon', stats: { atk: 24, spAtk: 4, critRate: 0.05 }, price: 450, rarity: 'epic', desc: '名剑，暴击+5%' },
@@ -81,6 +95,10 @@ const SET_ITEMS = [
   makeSetPiece('qinglan', 'body', '青岚袍', { spAtk: 6, spDef: 5, hp: 18 }, 480, 'epic'),
   makeSetPiece('qinglan', 'legs', '青岚护腿', { def: 5, spDef: 2, speed: 2 }, 440, 'epic'),
   makeSetPiece('qinglan', 'feet', '青岚履', { speed: 4, spAtk: 3 }, 400, 'epic'),
+  { id: 'shujin_body', name: '曙烬长衣', slot: 'body', setId: 'shujin', stats: { atk: 5, critRate: 0.03 }, price: 520, rarity: 'epic', desc: '曙烬暮华部件' },
+  { id: 'shujin_acc', name: '暮华坠', slot: 'accessory', setId: 'shujin', stats: { atk: 3, spAtk: 2 }, price: 480, rarity: 'epic', desc: '曙烬暮华部件' },
+  { id: 'youmu_body', name: '冥烬暗甲', slot: 'body', setId: 'youmu', stats: { def: 6, hp: 18 }, price: 520, rarity: 'epic', desc: '幽暮冥烬部件' },
+  { id: 'youmu_acc', name: '幽暮骨链', slot: 'accessory', setId: 'youmu', stats: { def: 3, spDef: 4 }, price: 480, rarity: 'epic', desc: '幽暮冥烬部件' },
 ];
 
 /** 散装防具（头饰 / 衣甲 / 护腿 / 战靴，无套装） */
@@ -130,13 +148,13 @@ function isShopItem(item) {
   if (!item || item.type === 'material') return false;
   if (item.unobtainable || item.auctionOnly || item.eventOnly) return false;
   if (item.rarity === 'legendary') return false;
-  return item.price != null;
+  return typeof item.price === 'number' && item.price > 0;
 }
 
 const SHOP = [
   ...WEAPONS.filter(isShopItem),
   ...ACCESSORIES.filter(isShopItem),
-  ...SET_ITEMS,
-  ...GEAR_ITEMS,
+  ...SET_ITEMS.filter(isShopItem),
+  ...GEAR_ITEMS.filter(isShopItem),
   ...MANUALS.filter(isShopItem),
 ];

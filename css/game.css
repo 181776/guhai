@@ -39,18 +39,18 @@ body { font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); co
 .game-author { font-size: 11px; color: var(--text-faint); font-weight: 400; display: block; }
 .game-author { display: block; font-size: 10px; font-weight: 500; color: var(--text-faint); margin-top: 6px; letter-spacing: 0.5px; }
 .nav-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 14px; background: none; border: none; color: var(--text-muted); text-align: left; cursor: pointer; font-size: 14px; }
-.nav-icon { width: 18px; height: 18px; flex-shrink: 0; image-rendering: pixelated; image-rendering: crisp-edges; object-fit: contain; }
-.nav-btn span { flex: 1; }
+.nav-btn > span:not(.nav-emoji) { flex: 1; }
+.nav-icon { width: 18px; height: 18px; flex: 0 0 18px; flex-shrink: 0; image-rendering: pixelated; image-rendering: crisp-edges; object-fit: contain; }
+.nav-emoji { width: 18px; height: 18px; flex: 0 0 18px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px; line-height: 1; }
 .nav-btn:hover { background: var(--accent-soft); color: var(--text); }
 .nav-btn.active { background: var(--accent-soft); color: var(--accent); border-left: 3px solid var(--accent); }
-.nav-emoji { width: 18px; text-align: center; flex-shrink: 0; font-size: 15px; line-height: 1; }
 .sidebar-footer { margin-top: auto; padding: 12px 0 0; border-top: 1px solid var(--border); }
 .main { flex: 1; padding: 20px; overflow-y: auto; background: var(--bg); }
 .top-bar { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; margin-bottom: 20px; padding: 12px 16px; background: var(--bg-panel); border-radius: 8px; border: 2px solid var(--border); }
 .bar-wrap { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .bar { width: 120px; height: 8px; background: var(--bg-inset); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
 .bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
-.hp { background: #ef4444; } .xp { background: #22c55e; } .gold { color: var(--gold-bright); }
+.hp { background: #ef4444; } .mp { background: #6366f1; } .xp { background: #22c55e; } .gold { color: var(--gold-bright); }
 .card { background: var(--bg-panel); border: 2px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
 .card h2 { font-size: 16px; margin-bottom: 12px; color: var(--accent); }
 .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
@@ -100,6 +100,7 @@ body { font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); co
 .item-info { flex: 1; } .item-desc { color: var(--text-faint); font-size: 11px; margin-top: 2px; }
 .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; background: var(--bg-inset); border: 1px solid var(--border); }
 .badge.common { color: #64748b; background: #f8fafc; border-color: #94a3b8; }
+.badge.fine { color: #15803d; background: #f0fdf4; border-color: #22c55e; }
 .badge.rare { color: #2563eb; background: #eff6ff; border-color: #3b82f6; }
 .badge.epic { color: #9333ea; background: #faf5ff; border-color: #a855f7; }
 .badge.legendary { color: #b45309; background: #fffbeb; border-color: #f59e0b; font-weight: 700; }
@@ -113,6 +114,10 @@ body { font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); co
 .shop-list li.rarity-common,
 .picker-list li.rarity-common,
 .skill-list li.rarity-common { border-color: #94a3b8; box-shadow: inset 3px 0 0 #94a3b8; }
+.equip-list li.rarity-fine,
+.shop-list li.rarity-fine,
+.picker-list li.rarity-fine,
+.skill-list li.rarity-fine { border-color: #4ade80; box-shadow: inset 3px 0 0 #22c55e, 0 0 6px rgba(34, 197, 94, 0.1); }
 .equip-list li.rarity-rare,
 .shop-list li.rarity-rare,
 .picker-list li.rarity-rare,
@@ -134,6 +139,7 @@ body { font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); co
 
 /* 品质边框 · 装备槽 */
 .equip-slot.rarity-common { border-color: #94a3b8; }
+.equip-slot.rarity-fine { border-color: #22c55e; box-shadow: 0 0 8px rgba(34, 197, 94, 0.12); }
 .equip-slot.rarity-rare { border-color: #3b82f6; box-shadow: 0 0 8px rgba(59, 130, 246, 0.12); }
 .equip-slot.rarity-epic { border-color: #a855f7; box-shadow: 0 0 10px rgba(168, 85, 247, 0.15); }
 .equip-slot.rarity-legendary { border-color: #f59e0b; box-shadow: 0 0 12px rgba(245, 158, 11, 0.2); }
@@ -141,6 +147,7 @@ body { font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); co
 
 /* 品质边框 · 图鉴 */
 .codex-item.rarity-common { border-color: #94a3b8; }
+.codex-item.rarity-fine { border-color: #22c55e; box-shadow: 0 0 8px rgba(34, 197, 94, 0.12); }
 .codex-item.rarity-rare { border-color: #3b82f6; box-shadow: 0 0 8px rgba(59, 130, 246, 0.12); }
 .codex-item.rarity-epic { border-color: #a855f7; box-shadow: 0 0 10px rgba(168, 85, 247, 0.15); }
 .codex-item.rarity-legendary { border-color: #f59e0b; box-shadow: 0 0 14px rgba(245, 158, 11, 0.22); }
@@ -533,6 +540,9 @@ body.pixel-theme .main {
 .ach-info b { display: inline-block; margin-right: 8px; }
 
 .unit-hp-bar .bar-fill.hp { transition: width 0.25s; }
+.unit-hp-bar .bar-fill.mp { transition: width 0.25s; }
+.unit-hp-bar.mp-bar { margin-top: 4px; height: 8px; }
+.mp-text { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 .unit-box.player.hp-flash { animation: hpFlash 0.35s ease; }
 @keyframes hpFlash { 50% { background: #fecaca; border-color: #ef4444; } }
 

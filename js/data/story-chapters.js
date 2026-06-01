@@ -18,7 +18,7 @@ const STORY_CHAPTERS = [
       '——章末·莫伯嘱：先清剿一条完整航线，击破头目，气段稳至三段，方可谈出村。',
     ],
     tasks: [
-      { id: 'v_route', type: 'route_clear', regionId: 'village', target: 1, label: '清剿乌石村航线 1 次' },
+      { id: 'v_route', type: 'route_clear', regionId: 'village', target: 3, label: '清剿乌石村航线 3 次' },
       { id: 'v_boss', type: 'boss_kill', regionId: 'village', target: 1, label: '击败乌石村航线 Boss' },
       { id: 'v_lv', type: 'level', target: 3, label: '达到 Lv.3' },
     ],
@@ -43,7 +43,7 @@ const STORY_CHAPTERS = [
       '——章末·货郎言：清剿幽林航线，破其头目，气段至五段，方可踏入遗迹。',
     ],
     tasks: [
-      { id: 'f_route', type: 'route_clear', regionId: 'forest', target: 1, label: '清剿幽暗森林航线 1 次' },
+      { id: 'f_route', type: 'route_clear', regionId: 'forest', target: 3, label: '清剿幽暗森林航线 3 次' },
       { id: 'f_boss', type: 'boss_kill', regionId: 'forest', target: 1, label: '击败森林航线 Boss' },
       { id: 'f_lv', type: 'level', target: 5, label: '达到 Lv.5' },
     ],
@@ -67,7 +67,7 @@ const STORY_CHAPTERS = [
       '——章末·墨翁嘱：清剿遗迹航线，破其魔首，青岚焰初稳，方可登峰。',
     ],
     tasks: [
-      { id: 'r_route', type: 'route_clear', regionId: 'ruins', target: 1, label: '清剿古代遗迹航线 1 次' },
+      { id: 'r_route', type: 'route_clear', regionId: 'ruins', target: 3, label: '清剿古代遗迹航线 3 次' },
       { id: 'r_boss', type: 'boss_kill', regionId: 'ruins', target: 1, label: '击败遗迹航线 Boss' },
       { id: 'r_lv', type: 'level', target: 8, label: '达到 Lv.8' },
     ],
@@ -92,7 +92,7 @@ const STORY_CHAPTERS = [
       '——章末·证道：清剿峰顶航线，败赵凌于 Boss 格，主线方告一段落。',
     ],
     tasks: [
-      { id: 'p_route', type: 'route_clear', regionId: 'peak', target: 1, label: '清剿苍岚峰航线 1 次' },
+      { id: 'p_route', type: 'route_clear', regionId: 'peak', target: 3, label: '清剿苍岚峰航线 3 次' },
       { id: 'p_boss', type: 'boss_kill', regionId: 'peak', target: 1, label: '击败苍岚峰航线 Boss' },
       { id: 'p_victory', type: 'flag', flag: 'ch_peak_victory', target: 1, label: '完成峰顶证道' },
     ],
