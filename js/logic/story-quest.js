@@ -7,6 +7,10 @@ function initStoryChapter() {
   if (state.storyChapter === 'prologue' && hasStoryFlag('prologue')) {
     state.storyChapter = 'village';
   }
+  if (state.storyChapter === 'complete' && (state.completedChapters || []).includes('peak') && !(state.completedChapters || []).includes('blaze')) {
+    state.storyChapter = 'blaze';
+    if (!hasStoryFlag('ch_blaze_enter')) setStoryFlag('ch_blaze_enter');
+  }
   if (!state.regionRoutes) state.regionRoutes = {};
   if (!state.regionBossKills) state.regionBossKills = {};
   if (!state.completedChapters) state.completedChapters = [];
@@ -15,6 +19,9 @@ function initStoryChapter() {
 function canAccessRegion(regionId) {
   const r = REGIONS.find(x => x.id === regionId);
   if (!r) return false;
+  if (regionId === 'blaze') {
+    if (!hasStoryFlag('ch_blaze_enter') && state.storyChapter !== 'blaze') return false;
+  }
   if (state.level >= r.minLevel) return true;
   const ch = typeof getCurrentStoryChapter === 'function' ? getCurrentStoryChapter() : null;
   return ch?.regionId === regionId;
@@ -38,6 +45,8 @@ function getChapterTaskProgress(task) {
       return state.level || 1;
     case 'flag':
       return hasStoryFlag(task.flag) ? 1 : 0;
+    case 'maxCombo':
+      return state.maxCombo || 0;
     case 'kill':
       return state.totalKills || 0;
     default:
@@ -85,7 +94,7 @@ function checkStoryChapterTasks() {
 function getStoryChapterTitle() {
   initStoryChapter();
   if (state.storyChapter === 'prologue') return '序章 · 莫欺少年穷';
-  if (state.storyChapter === 'complete') return '主线完成 · 苍岚新秀';
+  if (state.storyChapter === 'complete') return '主线完成 · 青岚承续';
   const ch = getCurrentStoryChapter();
   return ch?.title || '主线';
 }
@@ -107,8 +116,10 @@ function advanceStoryChapter() {
 
   if (!ch.nextId) {
     state.storyChapter = 'complete';
-    state.title = '苍岚新秀';
-    if (typeof showToast === 'function') showToast('🎉 主线四章完结！');
+    state.title = ch.id === 'blaze' ? '青岚承续' : '苍岚新秀';
+    if (typeof showToast === 'function') {
+      showToast(ch.id === 'blaze' ? '🎉 主线五章完结！魔渊边境，敬请期待。' : '🎉 主线完结！');
+    }
     render(); save();
     return true;
   }

@@ -30,5 +30,12 @@ function importSaveFromFile(file) {
   reader.readAsText(file);
 }
 
+function resetSave() {
+  if (!confirm('确定重置存档？所有进度将清空且无法恢复（除非已导出备份）。')) return;
+  try { localStorage.removeItem('idleRpgV1'); } catch (_) { /* ignore */ }
+  location.reload();
+}
+
 window.exportSave = exportSave;
 window.importSaveFromFile = importSaveFromFile;
+window.resetSave = resetSave;

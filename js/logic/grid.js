@@ -64,6 +64,10 @@ const GRID_BY_REGION = {
     rows: 15, cols: 15, encounterRate: 0.44,
     buildShape: buildPeakCloverShape,
   },
+  blaze: {
+    rows: 7, cols: 9, encounterRate: 0.46,
+    holes: [[0, 0], [0, 1], [1, 8], [2, 0], [3, 8], [6, 7], [6, 8]],
+  },
 };
 
 const CELL_LABEL = {

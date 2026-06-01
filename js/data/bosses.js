@@ -20,6 +20,11 @@ const REGION_BOSSES = {
     emoji: '👑', sprite: 'assets/img/monsters/boss_peak.svg',
     desc: '占峰为王的匪首，赵凌亦需借其势上位。',
   },
+  blaze: {
+    name: '魔焰执事', mob: '骷髅', title: '余烬侵蚀者',
+    emoji: '👑', sprite: 'assets/img/monsters/boss_blaze.svg',
+    desc: '血煞帮余党以魔焰侵蚀尸骨所化的头目，焚天魔影的先遣。',
+  },
 };
 
 function getRegionBoss(regionId) {

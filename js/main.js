@@ -6,7 +6,14 @@ window.unequipFromSlot = function(slot) { unequipSlot(slot); };
 
 window.learnFromBag = function(uid) { const item = state.bag.find(i => i.uid == uid); if (item?.type === 'manual') learnManual(item); };
 
-window.buyFromShop = function(id) { const item = SHOP.find(i => i.id === id); if (item) buyItem(item); };
+window.buyFromShop = function(id) {
+  if (typeof getMartialArt === 'function' && getMartialArt(id)) {
+    learnMartialArt(id);
+    return;
+  }
+  const item = SHOP.find(i => i.id === id);
+  if (item) buyItem(item);
+};
 
 window.sellItem = sellItem;
 
@@ -32,7 +39,7 @@ window.craftItem = craftItem;
 
 function render() {
   renderTopBar(); renderChar(); renderMartial(); renderMap(); renderBattle();
-  renderBag(); renderCraft(); renderShop(); renderAuction(); renderLife(); renderCheckin(); renderPet(); renderCodex(); renderAchievements(); renderCheat();
+  renderBag(); renderCraft(); renderShop(); renderAuction(); renderLife(); renderCheckin(); renderPet(); renderCodex(); renderAchievements();
 }
 
 document.getElementById('gridRegionTabs').addEventListener('click', e => {
@@ -124,7 +131,13 @@ document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click
   }
 }));
 
-document.querySelectorAll('.shop-tab').forEach(tab => tab.addEventListener('click', () => { shopTab = tab.dataset.shop; renderShop(); }));
+document.getElementById('btnResetSave')?.addEventListener('click', resetSave);
+
+document.querySelectorAll('.shop-tab').forEach(tab => tab.addEventListener('click', () => {
+  shopTab = tab.dataset.shop;
+  if (shopTab === 'manual') shopTab = 'martial';
+  renderShop();
+}));
 
 document.getElementById('cheatSetGold').addEventListener('click', () => {
   setCheatGold(document.getElementById('cheatGoldInput').value);

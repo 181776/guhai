@@ -26,6 +26,7 @@ const REGION_WEATHER = {
   forest: { icon: '🌫️', name: '雾', tip: '幽林雾重，毒系怪增多，带好回血药' },
   ruins: { icon: '🌙', name: '夜', tip: '遗迹月夜，特攻伤害 +8%' },
   peak: { icon: '❄️', name: '寒', tip: '峰顶风寒，Boss 二阶段更早触发' },
+  blaze: { icon: '🔥', name: '烬', tip: '魔焰余温，特攻伤害 +10%，精英怪增多' },
 };
 
 const BOSS_SKILLS = {
@@ -33,6 +34,7 @@ const BOSS_SKILLS = {
   forest: { name: '狼嚎', desc: '二阶段速度 +3' },
   ruins: { name: '骨盾', desc: '入场获得 10% 最大生命护盾' },
   peak: { name: '断峰剑意', desc: '三阶段额外特攻一击' },
+  blaze: { name: '魔焰侵蚀', desc: '受击 20% 概率附加 2 回合灼烧' },
 };
 
 const ACHIEVEMENTS = [
@@ -50,6 +52,7 @@ const ACHIEVEMENTS = [
   { id: 'a_streak3', name: '三连胜', desc: '连续清剿 3 条航线', check: s => (s.mapStreak || 0) >= 3, reward: { diamonds: 1 } },
   { id: 'a_ruins', name: '踏入遗迹', desc: '进入古代遗迹', check: s => !!(s.storyFlags || {})['ch_ruins_enter'], reward: { gold: 120 } },
   { id: 'a_peak', name: '登峰', desc: '进入苍岚峰', check: s => !!(s.storyFlags || {})['ch_peak_enter'], reward: { gold: 200 } },
+  { id: 'a_blaze', name: '余烬前行', desc: '进入青岚余烬', check: s => !!(s.storyFlags || {})['ch_blaze_enter'], reward: { gold: 250, diamonds: 1 } },
   { id: 'a_codex5', name: '博闻强识', desc: '解锁 5 种怪物图鉴', check: s => Object.keys(s.codex || {}).filter(k => (s.codex[k] || 0) > 0).length >= 5, reward: { gold: 80 } },
   { id: 'a_first_death', name: '早晚给你来一拳', desc: '主角首次战败倒下', check: s => (s.totalDeaths || 0) >= 1, noReward: true,
     memorialNote: '在v3.2版本，死亡是没惩罚可以无限续杯的，以及你猜我为什么要给你一拳' },

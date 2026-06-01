@@ -30,7 +30,6 @@
     <button class="nav-btn" data-page="life"><img src="assets/img/icons/nav/life.svg" alt="" class="nav-icon"><span>生活</span></button>
     <button class="nav-btn" data-page="checkin"><img src="assets/img/icons/nav/checkin.svg" alt="" class="nav-icon"><span>签到</span></button>
     <button class="nav-btn" data-page="pet"><img src="assets/img/icons/nav/pet.svg" alt="" class="nav-icon"><span>宠物</span></button>
-    <button class="nav-btn debug" data-page="cheat"><img src="assets/img/icons/nav/cheat.svg" alt="" class="nav-icon"><span>金手指</span></button>
     <div class="sidebar-footer">
       <button type="button" class="nav-btn" id="openFeedback"><span class="nav-emoji" aria-hidden="true">💬</span><span>反馈</span></button>
     </div>
@@ -60,8 +59,39 @@
                 <h3 id="slotPickerTitle">从背包选择</h3>
                 <ul class="picker-list" id="slotPickerList"></ul>
               </div>
-              <p class="footer-tip">套装效果请见图鉴 · 装备页；武功请见左侧「武功」</p>
+              <p class="footer-tip">套装效果请见图鉴 · 装备页；习得武功请见「商店 · 武功阁」</p>
             </div>
+            <details class="card char-cheat-card">
+              <summary class="char-cheat-summary">金手指 · 调试</summary>
+              <div class="cheat-box">
+                <p class="footer-tip">仅修改古海币/钻石/灵根或重置存档，方便测试。正式玩可忽略。</p>
+                <label>设置古海币为</label>
+                <input type="number" id="cheatGoldInput" min="0" value="1000">
+                <div class="cheat-actions">
+                  <button class="btn btn-sm" id="cheatSetGold">设置古海币</button>
+                  <button class="btn btn-sm btn-outline" id="cheatAdd1k">+1000</button>
+                  <button class="btn btn-sm btn-outline" id="cheatAdd10k">+10000</button>
+                </div>
+                <p class="footer-tip" style="margin-top:12px">当前古海币：<span id="cheatGoldNow" class="gold">0</span></p>
+                <label style="margin-top:12px;display:block">设置钻石为</label>
+                <input type="number" id="cheatDiamondInput" min="0" value="10">
+                <div class="cheat-actions">
+                  <button class="btn btn-sm" id="cheatSetDiamond">设置钻石</button>
+                  <button class="btn btn-sm btn-outline" id="cheatAdd5dia">+5</button>
+                </div>
+                <p class="footer-tip" style="margin-top:8px">当前钻石：<span id="cheatDiamondNow" class="diamond">0</span></p>
+                <label style="margin-top:12px;display:block">灵根（测试）</label>
+                <select id="cheatSpiritRoot" class="route-share-input"></select>
+                <button class="btn btn-sm" id="cheatSetSpiritRoot" style="margin-top:8px">设置灵根</button>
+                <hr style="margin:16px 0;border:none;border-top:2px dashed var(--border)">
+                <label>存档</label>
+                <div class="cheat-actions">
+                  <button class="btn btn-sm" id="btnExportSave">导出 JSON</button>
+                  <label class="btn btn-sm btn-outline" style="cursor:pointer">导入 JSON<input type="file" id="importSaveFile" accept=".json" hidden></label>
+                  <button class="btn btn-sm btn-danger" id="btnResetSave" type="button">重置存档</button>
+                </div>
+              </div>
+            </details>
           </div>
         </div>
         <aside class="char-story-rail px-panel">
@@ -73,13 +103,10 @@
 
     <div class="page" id="page-martial">
       <div class="card">
-        <h2>武功</h2>
-        <p class="footer-tip" id="martialSlotTip">—</p>
-        <ul class="shop-list" id="martialLearnList"></ul>
-      </div>
-      <div class="card">
         <h2>武功栏位</h2>
+        <p class="footer-tip" id="martialSlotTip">—</p>
         <ul class="skill-list" id="martialActiveList"></ul>
+        <p class="footer-tip">在「商店 · 武功阁」消耗古海币习得武功，填入上方空栏。</p>
       </div>
     </div>
 
@@ -143,10 +170,6 @@
     </div>
 
     <div class="page" id="page-achievements">
-      <div class="card bounty-card">
-        <h2>每日悬赏</h2>
-        <div id="bountyPanel" class="bounty-panel"></div>
-      </div>
       <div class="card">
         <h2>成就殿堂</h2>
         <p class="footer-tip" id="achSummary">—</p>
@@ -177,7 +200,7 @@
           <button class="shop-tab active" data-shop="weapon">兵器铺</button>
           <button class="shop-tab" data-shop="set">套装铺</button>
           <button class="shop-tab" data-shop="gear">饰品铺</button>
-          <button class="shop-tab" data-shop="manual">藏经阁</button>
+          <button class="shop-tab" data-shop="martial">武功阁</button>
         </div>
         <ul class="shop-list" id="shopList"></ul>
       </div>
@@ -223,6 +246,10 @@
           <p class="footer-tip" id="checkinStatus" style="margin-top:12px"></p>
         </div>
       </div>
+      <div class="card bounty-card">
+        <h2>每日悬赏</h2>
+        <div id="bountyPanel" class="bounty-panel"></div>
+      </div>
     </div>
 
     <div class="page" id="page-pet">
@@ -230,39 +257,6 @@
         <h2>宠物</h2>
         <p class="footer-tip" style="margin-bottom:12px">战斗宠提供小幅属性加成；生活宠可自动采集（效率为玩家的 10%）。地图战斗有概率捕获。</p>
         <div class="pet-grid" id="petGrid"></div>
-      </div>
-    </div>
-
-    <div class="page" id="page-cheat">
-      <div class="card">
-        <h2>金手指 · 调试</h2>
-        <div class="cheat-box">
-          <p class="footer-tip">仅修改古海币/钻石/灵根，方便测试。正式玩可忽略此页。</p>
-          <label>设置古海币为</label>
-          <input type="number" id="cheatGoldInput" min="0" value="1000">
-          <div class="cheat-actions">
-            <button class="btn btn-sm" id="cheatSetGold">设置古海币</button>
-            <button class="btn btn-sm btn-outline" id="cheatAdd1k">+1000</button>
-            <button class="btn btn-sm btn-outline" id="cheatAdd10k">+10000</button>
-          </div>
-          <p class="footer-tip" style="margin-top:12px">当前古海币：<span id="cheatGoldNow" class="gold">0</span></p>
-          <label style="margin-top:12px;display:block">设置钻石为</label>
-          <input type="number" id="cheatDiamondInput" min="0" value="10">
-          <div class="cheat-actions">
-            <button class="btn btn-sm" id="cheatSetDiamond">设置钻石</button>
-            <button class="btn btn-sm btn-outline" id="cheatAdd5dia">+5</button>
-          </div>
-          <p class="footer-tip" style="margin-top:8px">当前钻石：<span id="cheatDiamondNow" class="diamond">0</span></p>
-          <label style="margin-top:12px;display:block">灵根（测试）</label>
-          <select id="cheatSpiritRoot" class="route-share-input"></select>
-          <button class="btn btn-sm" id="cheatSetSpiritRoot" style="margin-top:8px">设置灵根</button>
-          <hr style="margin:16px 0;border:none;border-top:2px dashed var(--border)">
-          <label>存档导出 / 导入</label>
-          <div class="cheat-actions">
-            <button class="btn btn-sm" id="btnExportSave">导出 JSON</button>
-            <label class="btn btn-sm btn-outline" style="cursor:pointer">导入 JSON<input type="file" id="importSaveFile" accept=".json" hidden></label>
-          </div>
-        </div>
       </div>
     </div>
   </main>

@@ -1,4 +1,4 @@
-const GAME_VERSION = '3.6';
+const GAME_VERSION = '3.6.1';
 
 /** v3.5 货币名称 */
 const CURRENCY_NAME = '古海币';

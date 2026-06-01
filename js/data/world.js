@@ -32,6 +32,9 @@ const REGIONS = [
   { id: 'peak', name: '苍岚峰', minLevel: 8, goldMult: 2, xpMult: 1.6,
     desc: '剑宗试炼之峰。断峰剑意藏于云间，赵凌已在峰顶等最后一战。',
     monsters: ['山贼', '毒蜘蛛', '骷髅', '野狼'] },
+  { id: 'blaze', name: '青岚余烬', minLevel: 10, goldMult: 2.4, xpMult: 1.8,
+    desc: '魔焰自遗迹方向蔓延，妖兽暴走。青岚火种觉醒者的试炼之地。',
+    monsters: ['骷髅', '毒蜘蛛', '蝙蝠', '野狼'] },
 ];
 
 const LIFE_PET_EFFICIENCY = 0.1;
@@ -49,6 +52,7 @@ const PET_DROP_BY_REGION = {
   forest: ['p_wolf', 'p_spider', 'p_bat'],
   ruins: ['p_ghost', 'p_slime'],
   peak: ['p_wolf', 'p_ghost'],
+  blaze: ['p_ghost', 'p_spider', 'p_wolf'],
 };
 
 const CHECKIN_BASE = [50, 80, 100, 120, 150, 180, 250];

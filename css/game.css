@@ -193,7 +193,11 @@ body { font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); co
 .life-card h3 { font-size: 16px; margin-bottom: 6px; color: var(--text); }
 .life-card p { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; min-height: 32px; }
 .life-cd { font-size: 11px; color: var(--text-faint); margin-top: 8px; }
-.cheat-box { background: var(--bg-subtle); border: 2px dashed var(--gold-bright); border-radius: 8px; padding: 16px; max-width: 400px; }
+.cheat-box { background: var(--bg-subtle); border: 2px dashed var(--gold-bright); border-radius: 8px; padding: 16px; max-width: 100%; }
+.char-cheat-card { margin-top: 0; }
+.char-cheat-summary { cursor: pointer; font-weight: 600; color: var(--text-muted); list-style: none; }
+.char-cheat-summary::-webkit-details-marker { display: none; }
+.char-cheat-card[open] .char-cheat-summary { color: var(--gold-bright); margin-bottom: 12px; }
 .cheat-box input { width: 100%; padding: 8px; margin: 8px 0; border-radius: 6px; border: 2px solid var(--border); background: var(--bg-panel); color: var(--text); }
 .cheat-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .log .reflect { color: var(--accent); }

@@ -184,6 +184,23 @@ function renderMap() {
   }
 }
 
+function renderBounty() {
+  rollDailyBounty();
+  const b = state.bounty;
+  const bountyEl = document.getElementById('bountyPanel');
+  if (!bountyEl) return;
+  if (!b) {
+    bountyEl.innerHTML = '<p class="footer-tip">悬赏加载中…</p>';
+    return;
+  }
+  const done = b.progress >= b.target;
+  const region = REGIONS.find(r => r.id === b.regionId);
+  bountyEl.innerHTML = `
+    <p class="bounty-desc">今日目标 · ${region?.name || ''} · ${b.label} ${b.progress}/${b.target}</p>
+    <p class="item-desc">奖励 ${formatCoin(b.gold)} + ${b.xp} 经验</p>
+    <button type="button" class="btn btn-sm" onclick="claimBounty()" ${b.claimed ? 'disabled' : (!done ? 'disabled' : '')}>${b.claimed ? '已领取' : (done ? '领取悬赏' : '进行中')}</button>`;
+}
+
 function renderCheckin() {
   const today = todayStr();
   const done = state.lastCheckin === today;
@@ -206,6 +223,7 @@ function renderCheckin() {
     statusEl.textContent = `签到可得 ${formatCoin(previewGold)}${extra}` +
       (nextStreak === 3 && !state.pets.includes('p_slime') ? '，连续第 3 天额外获得小史莱姆宠物' : '');
   }
+  renderBounty();
 }
 
 function renderPet() {
@@ -234,17 +252,6 @@ function renderPet() {
 }
 
 function renderAchievements() {
-  rollDailyBounty();
-  const b = state.bounty;
-  const bountyEl = document.getElementById('bountyPanel');
-  if (bountyEl && b) {
-    const done = b.progress >= b.target;
-    const region = REGIONS.find(r => r.id === b.regionId);
-    bountyEl.innerHTML = `
-      <p class="bounty-desc">今日目标 · ${region?.name || ''} · ${b.label} ${b.progress}/${b.target}</p>
-      <p class="item-desc">奖励 ${formatCoin(b.gold)} + ${b.xp} 经验</p>
-      <button type="button" class="btn btn-sm" onclick="claimBounty()" ${b.claimed ? 'disabled' : (!done ? 'disabled' : '')}>${b.claimed ? '已领取' : (done ? '领取悬赏' : '进行中')}</button>`;
-  }
   const listEl = document.getElementById('achievementsList');
   const sumEl = document.getElementById('achSummary');
   if (!listEl) return;
@@ -318,10 +325,10 @@ function renderCharStory() {
   if (state.storyChapter === 'complete') {
     const recap = getCompletedChapterRecap();
     el.innerHTML = `
-      <div class="story-chapter-badge">主线完成 · 苍岚新秀</div>
+      <div class="story-chapter-badge">主线完成 · 青岚承续</div>
       <div class="novel-reader px-panel-inset">
-        <p class="novel-p">四章走完，青岚焰冲天。韩执事的选拔令仍在风中，而你已望见更远的路。</p>
-        <p class="novel-p">内门、血煞帮余孽、青岚焰真形……古海大陆的故事，才刚刚开始。</p>
+        <p class="novel-p">五章走完，青岚火种重稳于丹田。魔焰执事已退，但魔渊边境的黑云，仍未散尽。</p>
+        <p class="novel-p">焚天魔影、血煞帮余孽、青岚剑宗旧秘……古海大陆的故事，进入新的篇章。</p>
       </div>
       <div class="story-section">
         <div class="story-section-label">已完结章节</div>
@@ -448,55 +455,60 @@ function renderChar() {
           <div class="item-desc">${statLabel(item)}${item.setId ? ' · ' + SET_DEFS[item.setId]?.name : ''}</div></span>
           <button class="btn btn-sm" onclick="equipFromPicker('${item.uid}')">装备</button></li>`).join('');
   } else picker.style.display = 'none';
+  renderCharCheat();
+}
+
+function renderCharCheat() {
+  const goldNow = document.getElementById('cheatGoldNow');
+  if (!goldNow) return;
+  goldNow.textContent = state.gold;
+  const input = document.getElementById('cheatGoldInput');
+  if (input && document.activeElement !== input) input.value = state.gold;
+  document.getElementById('cheatDiamondNow').textContent = state.diamonds || 0;
+  const dInput = document.getElementById('cheatDiamondInput');
+  if (dInput && document.activeElement !== dInput) dInput.value = state.diamonds || 0;
+  const srSel = document.getElementById('cheatSpiritRoot');
+  if (srSel && !srSel.dataset.inited) {
+    srSel.innerHTML = Object.values(SPIRIT_ROOTS).map(r =>
+      `<option value="${r.id}"${state.spiritRoot === r.id ? ' selected' : ''}>${r.name} ×${r.mult}</option>`
+    ).join('');
+    srSel.dataset.inited = '1';
+  } else if (srSel) {
+    srSel.value = state.spiritRoot || 'fan';
+  }
 }
 
 function renderMartial() {
   const tip = document.getElementById('martialSlotTip');
-  const learnEl = document.getElementById('martialLearnList');
   const activeEl = document.getElementById('martialActiveList');
-  if (!learnEl) return;
+  if (!activeEl) return;
   const slots = getMartialSlotCount();
   const learned = state.martialArts || [];
   if (tip) {
     tip.textContent = slots > 0
-      ? `武功栏位 ${learned.length}/${slots} · 升级解锁空栏（非秘籍），每 5 级 +1 栏 · 有特效武功消耗精力`
+      ? `武功栏位 ${learned.length}/${slots} · 升级解锁空栏，每 5 级 +1 栏`
       : '达到 Lv.5 解锁首个武功栏位';
   }
-  learnEl.innerHTML = MARTIAL_ARTS.map(ma => {
-    const owned = hasLearnedMartial(ma.id);
-    const full = learned.length >= slots && !owned;
-    const locked = state.level < MARTIAL_SLOT_LEVEL;
-    const canBuy = !owned && !full && !locked && state.gold >= ma.price;
-    const mpTag = ma.effect ? ` · 触发耗精力 ${getMartialMpCost(ma)}` : ' · 常驻属性，不耗精力';
-    return `<li class="${rarityClass(ma)}"><span class="item-info">
-      <span class="${badgeRarityClass(ma)}">${getRarityLabel(ma)}</span> <b>${esc(ma.name)}</b>
-      <div class="item-desc">${esc(ma.desc)}${mpTag}</div>
-      <div class="footer-tip">${esc(ma.lore || '')}</div></span>
-      <button class="btn btn-sm" onclick="learnMartialArt('${ma.id}')" ${owned ? 'disabled' : (canBuy ? '' : 'disabled')}>
-        ${owned ? '已学' : locked ? 'Lv.5解锁栏位' : full ? '栏满' : formatCoin(ma.price)}</button></li>`;
-  }).join('');
-  if (activeEl) {
-    if (slots <= 0) {
-      activeEl.innerHTML = '<li class="skill-empty">达到 Lv.5 解锁首个武功栏位</li>';
+  if (slots <= 0) {
+    activeEl.innerHTML = '<li class="skill-empty">达到 Lv.5 解锁首个武功栏位</li>';
+    return;
+  }
+  const rows = [];
+  for (let i = 0; i < slots; i++) {
+    const id = learned[i];
+    if (id) {
+      const ma = getMartialArt(id);
+      if (!ma) continue;
+      const mpTag = ma.effect ? ` · 精力 ${getMartialMpCost(ma)}` : '';
+      rows.push(`<li class="${rarityClass(ma)}"><span class="item-info">
+        <span class="badge common">栏位 ${i + 1}</span>
+        <span class="${badgeRarityClass(ma)}">${getRarityLabel(ma)}</span> <b>${esc(ma.name)}</b>
+        <div class="item-desc">${esc(ma.desc)}${mpTag}</div></span></li>`);
     } else {
-      const rows = [];
-      for (let i = 0; i < slots; i++) {
-        const id = learned[i];
-        if (id) {
-          const ma = getMartialArt(id);
-          if (!ma) continue;
-          const mpTag = ma.effect ? ` · 精力 ${getMartialMpCost(ma)}` : '';
-          rows.push(`<li class="${rarityClass(ma)}"><span class="item-info">
-            <span class="badge common">栏位 ${i + 1}</span>
-            <span class="${badgeRarityClass(ma)}">${getRarityLabel(ma)}</span> <b>${esc(ma.name)}</b>
-            <div class="item-desc">${esc(ma.desc)}${mpTag}</div></span></li>`);
-        } else {
-          rows.push(`<li class="skill-empty"><span class="badge common">栏位 ${i + 1}</span> 空 · 可从上方学习武功填入</li>`);
-        }
-      }
-      activeEl.innerHTML = rows.join('');
+      rows.push(`<li class="skill-empty"><span class="badge common">栏位 ${i + 1}</span> 空 · 请至商店「武功阁」习得</li>`);
     }
   }
+  activeEl.innerHTML = rows.join('');
 }
 
 function renderSlot(slot, isSet) {
@@ -652,7 +664,7 @@ function renderBag() {
 function getShopItems() {
   if (shopTab === 'weapon') return WEAPONS.filter(isShopItem);
   if (shopTab === 'set') return [...SET_ITEMS.filter(isShopItem), ...GEAR_ITEMS.filter(isShopItem)];
-  if (shopTab === 'manual') return MANUALS.filter(isShopItem);
+  if (shopTab === 'martial') return MARTIAL_ARTS;
   return ACCESSORIES.filter(isShopItem);
 }
 
@@ -723,22 +735,32 @@ function renderLifeTree() {
   }).join('');
 }
 
-function renderCheat() {
-  document.getElementById('cheatGoldNow').textContent = state.gold;
-  const input = document.getElementById('cheatGoldInput');
-  if (document.activeElement !== input) input.value = state.gold;
-  document.getElementById('cheatDiamondNow').textContent = state.diamonds || 0;
-  const dInput = document.getElementById('cheatDiamondInput');
-  if (document.activeElement !== dInput) dInput.value = state.diamonds || 0;
-  const srSel = document.getElementById('cheatSpiritRoot');
-  if (srSel && !srSel.dataset.inited) {
-    srSel.innerHTML = Object.values(SPIRIT_ROOTS).map(r =>
-      `<option value="${r.id}"${state.spiritRoot === r.id ? ' selected' : ''}>${r.name} ×${r.mult}</option>`
-    ).join('');
-    srSel.dataset.inited = '1';
-  } else if (srSel) {
-    srSel.value = state.spiritRoot || 'fan';
+function renderShop() {
+  document.querySelectorAll('.shop-tab').forEach(t => t.classList.toggle('active', t.dataset.shop === shopTab));
+  if (shopTab === 'martial') {
+    const slots = getMartialSlotCount();
+    const learned = state.martialArts || [];
+    document.getElementById('shopList').innerHTML = MARTIAL_ARTS.map(ma => {
+      const owned = hasLearnedMartial(ma.id);
+      const full = learned.length >= slots && !owned;
+      const locked = state.level < MARTIAL_SLOT_LEVEL;
+      const canBuy = !owned && !full && !locked && state.gold >= ma.price;
+      const mpTag = ma.effect ? ` · 触发耗精力 ${getMartialMpCost(ma)}` : ' · 不耗精力';
+      const btnLabel = owned ? '已学' : locked ? 'Lv.5解锁栏位' : full ? '栏满' : formatCoin(ma.price);
+      return `<li class="${rarityClass(ma)}"><span class="item-info">
+        <span class="${badgeRarityClass(ma)}">${getRarityLabel(ma)}</span> <span class="badge common">武功</span> <b>${esc(ma.name)}</b>
+        <div class="item-desc">${esc(ma.desc)}${mpTag}</div>
+        <div class="footer-tip">${esc(ma.lore || '')}</div></span>
+        <button class="btn btn-sm" onclick="buyFromShop('${ma.id}')" ${owned ? 'disabled' : (canBuy ? '' : 'disabled')}>${btnLabel}</button></li>`;
+    }).join('');
+    return;
   }
+  document.getElementById('shopList').innerHTML = getShopItems().map(item => {
+    const tag = item.setId ? SET_DEFS[item.setId]?.name : (SLOT_NAMES[item.slot] || '');
+    return `<li class="${rarityClass(item)}"><span class="item-info"><span class="${badgeRarityClass(item)}">${getRarityLabel(item)}</span> ${tag ? `<span class="badge common">${tag}</span>` : ''} ${esc(item.name)} · ${statLabel(item)}
+      ${item.desc ? `<div class="item-desc">${esc(item.desc)}</div>` : ''}</span>
+      <button class="btn btn-sm" onclick="buyFromShop('${item.id}')" ${state.gold < item.price ? 'disabled' : ''}>${formatCoin(item.price)}</button></li>`;
+  }).join('');
 }
 
 function renderCodexEquipEntries(filterCategory) {
@@ -843,7 +865,7 @@ function renderCodex() {
   if (codexTab === 'martial') {
     if (setsEl) setsEl.style.display = 'none';
     listEl.style.display = '';
-    if (tipEl) tipEl.textContent = '武功图鉴 · 升级解锁栏位，在「武功」页消耗古海币填入。有特效武功消耗精力。';
+    if (tipEl) tipEl.textContent = '武功图鉴 · 升级解锁栏位，在「商店 · 武功阁」习得。有特效武功消耗精力。';
     listEl.innerHTML = MARTIAL_ARTS.map(ma => {
       const unlocked = !!(state.martialCodex || {})[ma.id] || hasLearnedMartial(ma.id);
       const mpTag = ma.effect ? ` · 触发耗精力 ${getMartialMpCost(ma)}` : ' · 不耗精力';
@@ -915,17 +937,5 @@ function renderAuction() {
     return `<li class="${rarityClass(item)}"><span class="item-info"><span class="${badgeRarityClass(item)}">${getRarityLabel(item)}</span> ${SLOT_NAMES[item.slot]} ${esc(item.name)}
       <div class="item-desc">${statLabel(item)} · 寄售可得约 ${formatCoin(total)}${item.rarity === 'epic' ? '（史诗或得💎）' : ''}</div></span>
       <button class="btn btn-sm btn-sell" onclick="consignToAuction('${item.uid}')">寄售</button></li>`;
-  }).join('');
-}
-
-function renderShop() {
-  document.querySelectorAll('.shop-tab').forEach(t => t.classList.toggle('active', t.dataset.shop === shopTab));
-  document.getElementById('shopList').innerHTML = getShopItems().map(item => {
-    const isManual = item.type === 'manual';
-    const owned = isManual && (state.skills.some(s => s.id === item.id) || state.bag.some(i => i.id === item.id && i.type === 'manual'));
-    const tag = isManual ? '秘籍' : item.setId ? SET_DEFS[item.setId]?.name : (SLOT_NAMES[item.slot] || '');
-    return `<li class="${rarityClass(item)}"><span class="item-info"><span class="${badgeRarityClass(item)}">${getRarityLabel(item)}</span> ${tag ? `<span class="badge common">${tag}</span>` : ''} ${esc(item.name)} · ${statLabel(item)}
-      ${item.desc ? `<div class="item-desc">${esc(item.desc)}</div>` : ''}</span>
-      <button class="btn btn-sm" onclick="buyFromShop('${item.id}')" ${state.gold < item.price || owned ? 'disabled' : ''}>${owned ? '已拥有' : formatCoin(item.price)}</button></li>`;
   }).join('');
 }

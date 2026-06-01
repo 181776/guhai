@@ -156,5 +156,4 @@ const SHOP = [
   ...ACCESSORIES.filter(isShopItem),
   ...SET_ITEMS.filter(isShopItem),
   ...GEAR_ITEMS.filter(isShopItem),
-  ...MANUALS.filter(isShopItem),
 ];

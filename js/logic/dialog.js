@@ -42,13 +42,14 @@ const STORY_DIALOGS = {
   level_10: { title: '试炼在望', lines: [{ speaker: '旁白', text: '苍岚峰在望，赵凌必在峰顶。' }], once: 'level_10' },
 };
 
-const CHAPTER_ORDER = ['village', 'forest', 'ruins', 'peak'];
+const CHAPTER_ORDER = ['village', 'forest', 'ruins', 'peak', 'blaze'];
 
 const CHAPTER_TITLES = {
   village: '第一章 · 乌石村',
   forest: '第二章 · 幽暗森林',
   ruins: '第三章 · 古代遗迹',
   peak: '第四章 · 苍岚峰',
+  blaze: '第五章 · 青岚余烬',
 };
 
 let dialogQueue = [];
@@ -163,6 +164,12 @@ function checkChapterBossDefeat(regionId) {
       render(); save();
     });
   }
+  if (regionId === 'blaze' && ch.onVictory) {
+    tryShowChapter('ch_blaze_victory', ch.onVictory, '余烬平定', () => {
+      state.title = '青岚承续';
+      render(); save();
+    });
+  }
 }
 
 function checkChapterPetGhost() {
@@ -180,7 +187,7 @@ function checkLevelStory(level) {
 
 function getCharStoryPanelData() {
   const progress = getStoryProgress();
-  const done = hasStoryFlag('ch_peak_victory');
+  const done = state.storyChapter === 'complete';
   let chapterId = null;
   if (hasStoryFlag('prologue')) {
     for (const id of CHAPTER_ORDER) {
@@ -194,6 +201,7 @@ function getCharStoryPanelData() {
     forest: ['zhaoling'],
     ruins: ['moweng'],
     peak: ['han', 'zhaoling'],
+    blaze: ['han', 'moweng'],
   };
   const cast = (chapterId ? castByChapter[chapterId] : ['suqing', 'mobo'])
     .map(k => STORY.characters[k]).filter(Boolean);
@@ -204,8 +212,12 @@ function getCharStoryPanelData() {
     synopsis = '三年前气尽断途，赵凌当众羞辱。苏清塞来伤药，莫伯给你木剑与铜钱——丹田深处，微火初跳。';
     objective = '阅读序章弹窗，然后开始乌石村外的修行。';
   } else if (done) {
-    synopsis = STORY.chapters.peak.onVictory[0].text;
-    objective = '主线第一章已完成。苍岚内门选拔，敬请期待。';
+    synopsis = (state.completedChapters || []).includes('blaze')
+      ? '五章走完，青岚火种重稳。魔渊边境已开，焚天魔影的阴影仍未散去。'
+      : STORY.chapters.peak.onVictory[0].text;
+    objective = (state.completedChapters || []).includes('blaze')
+      ? '主线第五章已完成。魔渊篇，敬请期待。'
+      : '主线第四章已完成。青岚余烬之祸，即将展开。';
   } else if (region) {
     synopsis = region.intro || region.blurb || synopsis;
     objective = region.blurb || objective;
@@ -216,6 +228,7 @@ function getCharStoryPanelData() {
   if (hasStoryFlag('ch_forest_rescue')) milestones.push('货郎获救');
   if (hasStoryFlag('ch_ruins_pet')) milestones.push('墨翁赠礼');
   if (hasStoryFlag('ch_peak_victory')) milestones.push('峰顶证道');
+  if (hasStoryFlag('ch_blaze_victory')) milestones.push('余烬平定');
 
   return {
     title: progress.label,
@@ -233,7 +246,7 @@ function getStoryProgress() {
   if (typeof getStoryChapterTitle === 'function') {
     const label = getStoryChapterTitle();
     const ch = getCurrentStoryChapter?.();
-    const idx = ch ? STORY_CHAPTERS.findIndex(c => c.id === ch.id) : (state.storyChapter === 'complete' ? 4 : 0);
+    const idx = ch ? STORY_CHAPTERS.findIndex(c => c.id === ch.id) : (state.storyChapter === 'complete' ? STORY_CHAPTERS.length : 0);
     return { label, chapter: idx + 1 };
   }
   if (!hasStoryFlag('prologue')) return { label: '序章 · 莫欺少年穷', chapter: 0 };
@@ -241,7 +254,12 @@ function getStoryProgress() {
     const id = CHAPTER_ORDER[i];
     if (hasStoryFlag('ch_' + id + '_enter')) {
       const name = STORY.regions?.[id]?.name || id;
-      if (id === 'peak' && hasStoryFlag('ch_peak_victory')) return { label: '主线完成 · ' + name, chapter: 5 };
+      if (id === 'peak' && hasStoryFlag('ch_peak_victory') && !hasStoryFlag('ch_blaze_enter')) {
+        return { label: '第四章完成 · 待入余烬', chapter: 4 };
+      }
+      if (id === 'blaze' && hasStoryFlag('ch_blaze_victory')) {
+        return { label: '主线完成 · 青岚承续', chapter: 5 };
+      }
       return { label: CHAPTER_TITLES[id] || name, chapter: i + 1 };
     }
   }

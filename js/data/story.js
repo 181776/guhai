@@ -22,6 +22,7 @@ const ASSETS = {
     forest: 'assets/img/regions/forest.png',
     ruins: 'assets/img/regions/ruins.png',
     peak: 'assets/img/regions/peak.png',
+    blaze: 'assets/img/regions/peak.png',
   },
   characters: {
     player: 'assets/img/characters/player.png',
@@ -103,6 +104,11 @@ const STORY = {
       intro: '剑宗外门试炼之地。登顶得断峰剑意，赵凌已在峰顶等你最后一战。',
       blurb: '韩执事观战。胜则名动一方，败则万事皆休。',
     },
+    blaze: {
+      name: '青岚余烬',
+      intro: '魔焰自遗迹方向蔓延，妖兽暴走。青岚火种觉醒后，你是唯一能够平定余烬的人。',
+      blurb: '击退魔焰执事，在乱战中稳住青岚火种，魔渊边境已在望。',
+    },
   },
 
   chapters: {
@@ -141,6 +147,16 @@ const STORY = {
       onVictory: [
         { speaker: '旁白', text: '断峰剑意入体，青岚焰冲天。韩执事沉默良久，递来内门选拔令。' },
         { speaker: '陆燃', text: '我的路，自己走。但今日之胜，不是结束，是开始。' },
+      ],
+    },
+    blaze: {
+      onEnter: [
+        { speaker: '旁白', text: '黑焰冲天，妖兽嘶吼。青岚余烬之地，步步都是魔气。' },
+        { speaker: '韩执事', text: '血煞帮在唤醒焚天魔影。你既觉醒本源火种，这余烬之地，只能由你来平。' },
+      ],
+      onVictory: [
+        { speaker: '墨翁', text: '好！魔焰执事已退，青岚火种稳了三分。' },
+        { speaker: '陆燃', text: '魔渊边境……我准备好了。' },
       ],
     },
   },

@@ -193,6 +193,7 @@ function dealPlayerDamage(m, s, isSpecial) {
   const weather = REGION_WEATHER[state.currentRegion];
   if (!isSpecial && weather?.name === '晴') atk = Math.floor(atk * 1.05);
   if (isSpecial && weather?.name === '夜') atk = Math.floor(atk * 1.08);
+  if (isSpecial && weather?.name === '烬') atk = Math.floor(atk * 1.10);
   const def = isSpecial ? m.spDef : m.def;
   let dmg = Math.max(1, atk - def + Math.floor(Math.random() * 4));
   const wb = getWeaknessBonus(m.dropName || m.name);
@@ -221,6 +222,11 @@ function dealPlayerDamage(m, s, isSpecial) {
     state.currentHp = Math.max(0, (state.currentHp ?? s.maxHp) - reflect);
     trackBattleStat('damageTaken', reflect);
     addLog(`<span class="dmg">凝胶反震 ${reflect}</span>`);
+  }
+  if (m.isBoss && m.regionId === 'blaze' && Math.random() < 0.2) {
+    if (!state.playerStatus) state.playerStatus = {};
+    state.playerStatus.burn = Math.max(state.playerStatus.burn || 0, 2);
+    addLog('<span class="dmg">魔焰侵蚀！灼烧 2 回合</span>');
   }
 }
 
