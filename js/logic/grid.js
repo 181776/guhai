@@ -272,6 +272,7 @@ function stopGridBattle() {
 }
 
 function openBattleModal() {
+  if (document.getElementById('page-map').classList.contains('active')) return;
   const el = document.getElementById('battleModal');
   if (el) el.classList.add('active');
 }
@@ -443,7 +444,6 @@ function confirmGridPath() {
   }
   const bossOnPath = fights.some(k => g.cells[k].type === 'boss');
   if (bossOnPath && !hasStoryFlag('first_boss')) tryShowDialog('first_boss');
-  autoUsePreBattleBuff();
   const preview = getRoutePreview();
   if (preview) {
     document.getElementById('gridStatus').textContent =
@@ -470,6 +470,7 @@ function markPathCellCleared(cellKey) {
   }
   if (getRemainingFightCells().length === 0) {
     stopGridBattle();
+    flushDeferredDialogs();
     completeGridMap();
   }
 }
@@ -502,7 +503,6 @@ function completeGridMap() {
     (streakBonus ? ` <span class="loot">(连胜 +${streakBonus})</span>` : ''), true);
   const summary = formatBattleStatsSummary();
   if (summary) addLog(`<span class="sys">${summary}</span>`, true);
-  autoUseRouteCompleteBonus();
   state.battleBuff = null;
   state.battleDebuff = null;
   closeBattleModal();

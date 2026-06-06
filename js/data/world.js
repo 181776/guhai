@@ -8,15 +8,15 @@ const TALENTS = [
 ];
 
 const LIFE_SKILLS = [
-  { id: 'chop', name: '砍柴', icon: '🪓', cd: 2500, xp: 5,
+  { id: 'chop', name: '砍柴', icon: '🪓', cd: 10000, xp: 20,
     mat: { id: 'mat_wood', name: '木料', type: 'material', rarity: 'common', desc: '生活材料，可贩卖' },
-    gold: [3, 10], msg: '砍下一段木料' },
-  { id: 'fish', name: '钓鱼', icon: '🎣', cd: 3000, xp: 6,
+    gold: [0, 0], matCount: [3, 5], msg: '砍下一批木料' },
+  { id: 'fish', name: '钓鱼', icon: '🎣', cd: 12000, xp: 25,
     mat: { id: 'mat_fish', name: '鲜鱼', type: 'material', rarity: 'common', desc: '生活材料，可贩卖' },
-    gold: [4, 12], msg: '钓到一条鱼' },
-  { id: 'mine', name: '挖矿', icon: '⛏️', cd: 3500, xp: 8,
+    gold: [0, 0], matCount: [3, 5], msg: '钓到几条鱼' },
+  { id: 'mine', name: '挖矿', icon: '⛏️', cd: 15000, xp: 32,
     mat: { id: 'mat_ore', name: '原矿', type: 'material', rarity: 'common', desc: '生活材料，可贩卖' },
-    gold: [5, 14], msg: '挖出一块原矿' },
+    gold: [0, 0], matCount: [3, 5], msg: '挖出一堆原矿' },
 ];
 
 const REGIONS = [

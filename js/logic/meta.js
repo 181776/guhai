@@ -1,10 +1,5 @@
 // v3.0 元系统逻辑
 
-function getIdleHealRatio() {
-  const mode = IDLE_MODES[state.idleMode || 'balanced'] || IDLE_MODES.balanced;
-  return mode.healRatio;
-}
-
 function getBattleInterval() {
   return BATTLE_SPEEDS[state.battleSpeed || 1] || 900;
 }
@@ -13,12 +8,6 @@ function restartBattleTimer() {
   if (!state.battleOn) return;
   clearInterval(battleTimer);
   battleTimer = setInterval(battleTick, getBattleInterval());
-}
-
-function setIdleMode(id) {
-  if (!IDLE_MODES[id]) return;
-  state.idleMode = id;
-  render(); save();
 }
 
 function setBattleSpeed(spd) {
@@ -57,10 +46,7 @@ function tickLifePetGather() {
   const cdMs = Math.floor(skill.cd * bonus.cdMult);
   if (now < (state.lifePetCd?.[cdKey] || 0)) return;
   state.lifePetCd[cdKey] = now + cdMs;
-  const baseG = skill.gold[0] + Math.floor(Math.random() * (skill.gold[1] - skill.gold[0] + 1));
-  const g = applyGoldGain(Math.floor(baseG * bonus.goldMult * LIFE_PET_EFFICIENCY));
-  const xpGain = Math.max(1, Math.floor((skill.xp + bonus.xpBonus) * LIFE_PET_EFFICIENCY));
-  if (g > 0) state.gold += g;
+  const xpGain = Math.max(1, Math.floor(skill.xp * (bonus.xpMult || 1) * LIFE_PET_EFFICIENCY));
   state.xp += applyXpGain(xpGain);
   if (Math.random() < LIFE_PET_EFFICIENCY) addToBag({ ...skill.mat });
   state.lifeSp = (state.lifeSp || 0) + (Math.random() < LIFE_PET_EFFICIENCY ? 1 : 0);
@@ -77,6 +63,7 @@ function trackGoldSpent(amount) {
 function handleBattleDefeat() {
   clearInterval(battleTimer);
   state.battleOn = false;
+  flushDeferredDialogs();
   state.combo = 0;
   state.mapStreak = 0;
   state.pendingDefeatRetry = true;
@@ -113,7 +100,6 @@ function resumeBattleAfterDefeat(resetRoute) {
   }
   state.battleOn = true;
   clampHp();
-  autoUsePreBattleBuff();
   if (!state.monster) {
     spawnMonster();
   } else {
@@ -334,7 +320,6 @@ function checkOfflineSummary() {
   }, 800);
 }
 
-window.setIdleMode = setIdleMode;
 window.setBattleSpeed = setBattleSpeed;
 window.claimBounty = claimBounty;
 window.retryAfterDefeat = retryAfterDefeat;

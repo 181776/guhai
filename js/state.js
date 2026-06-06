@@ -16,7 +16,7 @@ const DEFAULT_STATE = {
   grid: null,
   codex: {}, itemCodex: {}, storyFlags: {}, bestRoutes: {},
   battleOn: false, monster: null, battleBuff: null, battleDebuff: null, battleStats: null,
-  idleMode: 'balanced', battleSpeed: 1, combo: 0, maxCombo: 0, mapStreak: 0,
+  battleSpeed: 1, combo: 0, maxCombo: 0, mapStreak: 0,
   totalKills: 0, totalBossKills: 0, totalRoutes: 0, totalCrafts: 0,
   totalDeaths: 0, totalGoldSpent: 0,
   achievements: {}, bounty: null, lastSaveTime: 0, playerStatus: null,
@@ -128,7 +128,6 @@ function migrate(data) {
   d.battleBuff = data.battleBuff || null;
   d.battleDebuff = data.battleDebuff || null;
   d.battleStats = data.battleStats || null;
-  d.idleMode = data.idleMode || 'balanced';
   d.battleSpeed = data.battleSpeed || 1;
   d.combo = data.combo || 0;
   d.maxCombo = data.maxCombo || 0;
@@ -252,17 +251,16 @@ function calcStats(st = state) {
   const pb = typeof getPetBonuses === 'function' ? getPetBonuses(st) : emptyStats();
   const qk = typeof getQinglanStatBonus === 'function' ? getQinglanStatBonus(st) : emptyStats();
   const qm = typeof getQinglanMult === 'function' ? getQinglanMult(st) : 1;
-  const lv = st.level - 1;
   const bc = st.baseCrit || BASE_CRIT;
-  const sum = (k, grow) => Math.floor(
-    (st.baseStats[k] + eq[k] + sk[k] + setB.stats[k] + tb.bonus[k] + mb[k] + pb[k] + qk[k] + lv * grow) * qm
+  const sum = (k) => Math.floor(
+    (st.baseStats[k] + eq[k] + sk[k] + setB.stats[k] + tb.bonus[k] + mb[k] + pb[k] + qk[k]) * qm
   );
-  let maxHp = sum('hp', LEVEL_GROWTH.hp);
+  let maxHp = sum('hp');
   let critRate = bc.rate + eq.critRate + sk.critRate + setB.critRate + tb.bonus.critRate + mb.critRate + pb.critRate;
   let critDmg = (bc.dmg + eq.critDmg + sk.critDmg + setB.critDmg + tb.bonus.critDmg + pb.critDmg) * tb.critDmgMult;
-  let atk = sum('atk', LEVEL_GROWTH.atk);
+  let atk = sum('atk');
   if (st.battleBuff?.atkMult) atk = Math.floor(atk * st.battleBuff.atkMult);
-  let def = sum('def', LEVEL_GROWTH.def);
+  let def = sum('def');
   const dynPartial = { maxHp, atk, def, critRate };
   const dyn = calcDynamicAccessoryBonus(st, dynPartial);
   def += dyn.def;
@@ -271,9 +269,9 @@ function calcStats(st = state) {
     maxHp, hp: st.currentHp ?? maxHp,
     atk,
     def,
-    spAtk: sum('spAtk', LEVEL_GROWTH.spAtk),
-    spDef: sum('spDef', LEVEL_GROWTH.spDef),
-    speed: sum('speed', LEVEL_GROWTH.speed),
+    spAtk: sum('spAtk'),
+    spDef: sum('spDef'),
+    speed: sum('speed'),
     critRate: Math.min(0.95, critRate),
     critDmg,
     setBonuses: setB.active,

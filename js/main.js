@@ -1,6 +1,22 @@
-window.openSlotPicker = function(slot) { pickingSlot = pickingSlot === slot ? null : slot; renderChar(); };
+window.openSlotPicker = function(slot) {
+  if (pickingSlot === slot) { closeEquipModal(); return; }
+  pickingSlot = slot;
+  renderChar();
+  renderEquipPickerModal();
+};
 
-window.equipFromPicker = function(uid) { const item = state.bag.find(i => i.uid == uid); if (item) equipItem(item); };
+window.closeEquipModal = function() {
+  pickingSlot = null;
+  document.getElementById('equipModal')?.classList.remove('active');
+  renderChar();
+};
+
+window.equipFromPicker = function(uid) {
+  const item = state.bag.find(i => i.uid == uid);
+  if (!item) return;
+  equipItem(item);
+  document.getElementById('equipModal')?.classList.remove('active');
+};
 
 window.unequipFromSlot = function(slot) { unequipSlot(slot); };
 
@@ -136,8 +152,16 @@ document.getElementById('btnResetSave')?.addEventListener('click', resetSave);
 document.querySelectorAll('.shop-tab').forEach(tab => tab.addEventListener('click', () => {
   shopTab = tab.dataset.shop;
   if (shopTab === 'manual') shopTab = 'martial';
+  state._shopFilter = 'all';
   renderShop();
 }));
+
+document.getElementById('shopList').addEventListener('click', (e) => {
+  const chip = e.target.closest('.shop-filter-chip');
+  if (!chip) return;
+  state._shopFilter = chip.dataset.shopFilter;
+  renderShop();
+});
 
 document.getElementById('cheatSetGold').addEventListener('click', () => {
   setCheatGold(document.getElementById('cheatGoldInput').value);
@@ -171,7 +195,7 @@ document.getElementById('feedbackModal')?.addEventListener('click', e => {
 });
 document.getElementById('feedbackType')?.addEventListener('change', updateFeedbackMeta);
 
-document.getElementById('toggleBattle').addEventListener('click', () => {
+function toggleBattleAction() {
   if (!state.battleOn && !canStartGridBattle()) {
     addLog('<span class="sys">请先连线路线并确认，路线上须有未清剿的怪物格</span>', true);
     return;
@@ -179,7 +203,6 @@ document.getElementById('toggleBattle').addEventListener('click', () => {
   state.battleOn = !state.battleOn;
   if (state.battleOn) {
     clampHp();
-    autoUsePreBattleBuff();
     if (!state.monster) spawnMonster();
     else if (!currentLogBlock) startBattleBlock(state.monster.name, state.monster.level);
     battleTimer = setInterval(battleTick, getBattleInterval());
@@ -190,7 +213,10 @@ document.getElementById('toggleBattle').addEventListener('click', () => {
     addLog('—— 停止挂机 ——', true);
   }
   render(); save();
-});
+}
+
+document.getElementById('toggleBattle').addEventListener('click', toggleBattleAction);
+document.getElementById('mapToggleBattle').addEventListener('click', toggleBattleAction);
 
 if (!state.grid?.cells) initGridMap(true);
 else if (state.grid.phase === 'walk') {

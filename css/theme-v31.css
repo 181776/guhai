@@ -310,7 +310,7 @@ body.v31-theme.pixel-theme .logo-icon {
 
 .stage-rail .px-panel { margin-bottom: var(--sp-3); }
 
-.stage-arena.map-arena {
+.map-arena {
   margin-bottom: 0;
   min-height: 320px;
 }
@@ -583,9 +583,22 @@ body.v31-theme.pixel-theme .logo-icon {
 .v31-theme .equip-list li,
 .v31-theme .shop-list li,
 .v31-theme .skill-list li,
-.v31-theme .picker-list li {
+.v31-theme .picker-list li,
+.v31-theme .equip-modal-list li {
   background: var(--bg-inset);
 }
+
+.v31-theme .equip-modal {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.v31-theme .equip-modal-panel {
+  border-color: var(--border-strong);
+  box-shadow: 4px 4px 0 var(--px-shadow);
+}
+
+.v31-theme .stat-diff-up { color: #4ade80; }
+.v31-theme .stat-diff-down { color: #f87171; }
 
 .v31-theme .equip-list li.rarity-rare,
 .v31-theme .shop-list li.rarity-rare { box-shadow: inset 3px 0 0 #3b82f6, 0 0 10px rgba(59, 130, 246, 0.15); }
@@ -691,6 +704,40 @@ body.v31-theme.pixel-theme .logo-icon {
   background:
     radial-gradient(ellipse 70% 40% at 80% 0%, rgba(45, 212, 191, 0.07), transparent),
     var(--bg-panel);
+}
+
+/* 地图页 · 左地图 + 右战斗 */
+.map-page-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-4);
+  align-items: start;
+  width: 100%;
+}
+
+.map-page-main {
+  min-width: 0;
+}
+
+.map-battle-rail {
+  min-width: 0;
+  min-height: 300px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin-bottom: 0;
+  padding: var(--sp-5) !important;
+  background:
+    radial-gradient(ellipse 70% 40% at 80% 0%, rgba(234, 88, 12, 0.06), transparent),
+    var(--bg-panel);
+}
+
+.map-battle-rail .story-rail-title {
+  font-size: 16px;
+  color: var(--gold-bright);
+  margin-bottom: var(--sp-4);
+  padding-bottom: var(--sp-2);
+  border-bottom: 2px solid var(--border);
 }
 
 .story-rail-title {
@@ -1047,6 +1094,16 @@ body.v31-theme.pixel-theme .logo-icon {
   }
 
   .char-story-rail {
+    position: static;
+    min-height: auto;
+    max-height: none;
+  }
+
+  .map-page-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .map-battle-rail {
     position: static;
     min-height: auto;
     max-height: none;

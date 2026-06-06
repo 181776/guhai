@@ -96,7 +96,28 @@ body { font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); co
 .slot-item { min-height: 40px; margin-bottom: 8px; font-size: 13px; }
 .slot-item .empty { color: var(--text-faint); }
 .slot-actions { display: flex; gap: 4px; flex-wrap: wrap; }
-.slot-picker { margin-top: 12px; padding: 12px; background: var(--bg-subtle); border-radius: 8px; border: 2px dashed var(--border); }
+.equip-modal { display: none; position: fixed; inset: 0; z-index: 950; background: rgba(0,0,0,.45); align-items: center; justify-content: center; padding: 16px; }
+.equip-modal.active { display: flex; }
+.equip-modal-panel { background: var(--bg-panel); border: 3px solid var(--border-strong); max-width: 480px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; padding: 16px; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
+.equip-modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0; }
+.equip-modal-head h2 { margin: 0; font-size: 1.1rem; color: var(--accent); }
+.equip-modal-current { flex-shrink: 0; padding: 10px 12px; margin-bottom: 10px; background: var(--bg-subtle); border: 2px solid var(--border); border-radius: 8px; font-size: 13px; }
+.equip-modal-current-label { font-size: 11px; color: var(--text-faint); margin-bottom: 4px; }
+.equip-modal-list { list-style: none; overflow-y: auto; flex: 1; min-height: 0; margin: 0 -4px; padding: 0 4px; }
+.equip-modal-list li {
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; padding: 10px;
+  background: var(--bg-subtle); border-radius: 8px; margin-bottom: 8px; font-size: 13px; border: 1px solid var(--border);
+}
+.equip-modal-list .equip-candidate-main { flex: 1; min-width: 140px; }
+.equip-modal-list .equip-candidate-diff { width: 100%; font-size: 12px; line-height: 1.6; }
+.equip-modal-list .equip-candidate-actions { flex-shrink: 0; align-self: center; }
+.stat-diff-up { color: #16a34a; font-weight: 600; }
+.stat-diff-down { color: #dc2626; font-weight: 600; }
+.stat-diff-neutral { color: var(--text-faint); font-size: 12px; }
+.stat-diff-up + .stat-diff-up,
+.stat-diff-down + .stat-diff-up,
+.stat-diff-up + .stat-diff-down,
+.stat-diff-down + .stat-diff-down { margin-left: 0.35em; }
 .item-info { flex: 1; } .item-desc { color: var(--text-faint); font-size: 11px; margin-top: 2px; }
 .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; background: var(--bg-inset); border: 1px solid var(--border); }
 .badge.common { color: #64748b; background: #f8fafc; border-color: #94a3b8; }
@@ -112,26 +133,32 @@ body { font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); co
 /* 品质边框 · 列表项 */
 .equip-list li.rarity-common,
 .shop-list li.rarity-common,
+.equip-modal-list li.rarity-common,
 .picker-list li.rarity-common,
 .skill-list li.rarity-common { border-color: #94a3b8; box-shadow: inset 3px 0 0 #94a3b8; }
 .equip-list li.rarity-fine,
 .shop-list li.rarity-fine,
+.equip-modal-list li.rarity-fine,
 .picker-list li.rarity-fine,
 .skill-list li.rarity-fine { border-color: #4ade80; box-shadow: inset 3px 0 0 #22c55e, 0 0 6px rgba(34, 197, 94, 0.1); }
 .equip-list li.rarity-rare,
 .shop-list li.rarity-rare,
+.equip-modal-list li.rarity-rare,
 .picker-list li.rarity-rare,
 .skill-list li.rarity-rare { border-color: #60a5fa; box-shadow: inset 3px 0 0 #3b82f6, 0 0 8px rgba(59, 130, 246, 0.08); }
 .equip-list li.rarity-epic,
 .shop-list li.rarity-epic,
+.equip-modal-list li.rarity-epic,
 .picker-list li.rarity-epic,
 .skill-list li.rarity-epic { border-color: #c084fc; box-shadow: inset 3px 0 0 #a855f7, 0 0 10px rgba(168, 85, 247, 0.12); }
 .equip-list li.rarity-legendary,
 .shop-list li.rarity-legendary,
+.equip-modal-list li.rarity-legendary,
 .picker-list li.rarity-legendary,
 .skill-list li.rarity-legendary { border-color: #fbbf24; box-shadow: inset 3px 0 0 #f59e0b, 0 0 12px rgba(245, 158, 11, 0.18); }
 .equip-list li.rarity-set,
 .shop-list li.rarity-set,
+.equip-modal-list li.rarity-set,
 .picker-list li.rarity-set { border-color: #22d3ee; box-shadow: inset 3px 0 0 #06b6d4, 0 0 8px rgba(6, 182, 212, 0.1); }
 .equip-list li.rarity-manual,
 .skill-list li.rarity-manual { border-color: #f472b6; box-shadow: inset 3px 0 0 #db2777; }
@@ -171,6 +198,13 @@ body { font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); co
 .char-profile .char-name { font-size: 22px; font-weight: 700; color: var(--text); }
 .char-profile .char-title { color: var(--accent); font-size: 14px; margin-top: 4px; }
 .char-profile .char-bio { color: var(--text-muted); font-size: 13px; margin-top: 8px; }
+.char-profile-split { display: flex; gap: 16px; align-items: flex-start; }
+.char-profile-info { flex: 1; min-width: 0; }
+.char-profile-info .char-bio { margin-top: 8px; }
+.char-profile-info .char-meta-row { margin-top: 8px; }
+.char-profile-info .combat-power-box { margin-top: 8px; display: inline-block; }
+.char-portrait-wrap { width: 160px; aspect-ratio: 1 / 1; flex-shrink: 0; border: 2px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--bg-subtle); display: flex; align-items: center; justify-content: center; }
+.char-portrait { width: 100%; height: 100%; object-fit: cover; image-rendering: auto; }
 .edit-form { display: none; } .edit-form.active { display: block; }
 .edit-form label { display: block; font-size: 12px; color: var(--text-muted); margin: 10px 0 4px; }
 .edit-form input, .edit-form textarea { width: 100%; padding: 8px; border-radius: 6px; border: 2px solid var(--border); background: var(--bg-panel); color: var(--text); }
@@ -178,6 +212,32 @@ body { font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); co
 .shop-tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
 .shop-tab { padding: 6px 14px; border-radius: 6px; border: 2px solid var(--border); background: var(--bg-panel); color: var(--text-muted); cursor: pointer; font-size: 13px; }
 .shop-tab.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+/* v3.6.4 商店卡片布局 */
+.shop-filter-bar { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+.shop-filter-chip { padding: 4px 12px; border-radius: 14px; border: 2px solid var(--border); background: var(--bg-panel); color: var(--text-muted); cursor: pointer; font-size: 12px; }
+.shop-filter-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+.shop-card { border: 2px solid var(--border); border-radius: 8px; padding: 12px; background: var(--bg-panel); margin-bottom: 8px; }
+.shop-card.shop-upgrade { border-color: var(--success); box-shadow: 0 0 6px rgba(21,128,61,0.2); }
+.shop-card.rarity-epic { border-color: #8b5cf6; }
+.shop-card.rarity-legendary { border-color: #f59e0b; }
+.shop-card.rarity-rare { border-color: #3b82f6; }
+.shop-card.rarity-fine { border-color: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.1); }
+.shop-card.rarity-common { border-color: #94a3b8; }
+.shop-card-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.shop-card-top b { font-size: 14px; }
+.shop-card-stats { color: var(--text-muted); font-size: 13px; margin-bottom: 6px; }
+.shop-compare { font-size: 12px; margin-bottom: 6px; }
+.shop-card-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+.shop-price { font-weight: bold; color: var(--gold-bright); font-size: 14px; }
+.shop-upgrade-tag { font-size: 11px; margin-left: 2px; }
+
+.shop-card .equip-candidate-diff { font-size: 12px; }
+.shop-card .stat-diff-up { color: var(--success); }
+.shop-card .stat-diff-down { color: var(--danger); }
+.shop-card .stat-diff-neutral { color: var(--text-faint); }
+.shop-card .item-desc { font-size: 12px; color: var(--text-faint); margin-bottom: 6px; }
 .bag-section-title { font-size: 12px; color: var(--text-muted); margin: 12px 0 8px; }
 .skill-empty { color: var(--text-faint); font-size: 13px; padding: 8px; }
 .equip-subsection { margin-top: 16px; padding-top: 14px; border-top: 2px solid var(--border); }
@@ -230,7 +290,29 @@ body { font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); co
 .grid-cell.cell-path-locked { background: #fcd34d; border-color: #b45309; color: #78350f; }
 .grid-cell.cell-pending { background: #fed7aa; border-color: #ea580c; color: #9a3412; }
 .grid-cell.cell-cleared { background: #bbf7d0; border-color: #16a34a; color: #14532d; }
+.grid-cell.cell-battling { background: #fff; border-color: #ea580c; color: #9a3412; font-size: 14px; font-weight: 700; animation: battlePulse 0.5s ease infinite; box-shadow: 0 0 10px rgba(234,88,12,0.5), 0 0 20px rgba(234,88,12,0.2); z-index: 2; position: relative; }
+@keyframes battlePulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(234,88,12,0.5), 0 0 20px rgba(234,88,12,0.2); }
+  50% { box-shadow: 0 0 16px rgba(234,88,12,0.8), 0 0 32px rgba(234,88,12,0.4); transform: scale(1.1); }
+}
 .grid-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+
+/* v3.6.4 地图右侧战斗主舞台 */
+.map-battle-rail { margin-bottom: 0 !important; }
+.map-battle-units { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
+.mbi-unit { display: flex; align-items: center; gap: 10px; }
+.mbi-unit .unit-hp-bar { width: 100%; height: 10px; margin: 4px 0; }
+.mbi-unit .unit-hp-bar .enemy-hp { background: #dc2626; }
+.mbi-sprite { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; font-size: 32px; flex-shrink: 0; }
+.mbi-info { flex: 1; min-width: 0; font-size: 13px; }
+.mbi-info b { font-size: 14px; display: block; }
+.mbi-vs { text-align: center; font-weight: 700; color: var(--danger); font-size: 18px; padding: 4px 0; }
+.map-battle-controls { display: flex; align-items: center; gap: 12px; margin: 14px 0; flex-wrap: wrap; }
+.map-battle-stats { font-size: 12px; color: var(--text-muted); }
+.map-battle-log { max-height: 300px; overflow-y: auto; font-size: 12px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-panel); word-break: break-all; }
+.map-battle-log p { margin: 2px 0; }
+.mbi-info .footer-tip { font-size: 11px; }
+.mbi-info { overflow-wrap: break-word; }
 .checkin-box { text-align: center; padding: 20px; background: var(--bg-subtle); border-radius: 8px; border: 2px solid var(--border); }
 .checkin-streak { font-size: 28px; font-weight: 700; color: var(--gold-bright); margin: 12px 0; }
 .pet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }

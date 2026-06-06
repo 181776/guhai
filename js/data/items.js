@@ -151,6 +151,28 @@ function isShopItem(item) {
   return typeof item.price === 'number' && item.price > 0;
 }
 
+/** v3.6.3 商店装备售价 +30%（武功阁学费不在此列） */
+const SHOP_PRICE_MULT = 1.3;
+
+function getShopPrice(item) {
+  if (!item || typeof item.price !== 'number') return 0;
+  return Math.max(1, Math.floor(item.price * SHOP_PRICE_MULT));
+}
+
+function ownsShopEquipId(id, st = state) {
+  if (!id) return false;
+  const eq = st.equip || {};
+  if (Object.values(eq).some(i => i && i.id === id)) return true;
+  return (st.bag || []).some(i => i.id === id && i.slot);
+}
+
+/** 普通装备可重复购买；精良及以上同 id 已拥有则不可再买 */
+function canBuyShopEquip(item, st = state) {
+  if (!isShopItem(item) || item.type === 'manual') return false;
+  if ((item.rarity || 'common') === 'common') return true;
+  return !ownsShopEquipId(item.id, st);
+}
+
 const SHOP = [
   ...WEAPONS.filter(isShopItem),
   ...ACCESSORIES.filter(isShopItem),

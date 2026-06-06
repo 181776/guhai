@@ -21,6 +21,79 @@ function statLabel(item) {
   }).join(' ') || '—';
 }
 
+const EQUIP_STAT_DIFF_KEYS = [
+  { key: 'atk', label: '物攻' },
+  { key: 'def', label: '物防' },
+  { key: 'spAtk', label: '特攻' },
+  { key: 'spDef', label: '特防' },
+  { key: 'speed', label: '速度' },
+  { key: 'maxHp', label: 'HP' },
+  { key: 'critRate', label: '暴击率', pct: true },
+  { key: 'critDmg', label: '暴击伤害', pct: true },
+];
+
+function calcStatsWithSlotItem(slot, item) {
+  const equip = { ...state.equip, [slot]: item || null };
+  return calcStats({ ...state, equip });
+}
+
+function formatEquipStatDelta(key, delta, pct) {
+  if (pct) {
+    const n = delta * 100;
+    const sign = n > 0 ? '+' : '';
+    const decimals = key === 'critRate' ? 1 : 0;
+    return `${sign}${n.toFixed(decimals)}%`;
+  }
+  const sign = delta > 0 ? '+' : '';
+  return `${sign}${delta}`;
+}
+
+function renderEquipStatDiff(slot, candidate) {
+  const before = calcStatsWithSlotItem(slot, state.equip[slot]);
+  const after = calcStatsWithSlotItem(slot, candidate);
+  const parts = [];
+  for (const { key, label, pct } of EQUIP_STAT_DIFF_KEYS) {
+    const delta = (after[key] ?? 0) - (before[key] ?? 0);
+    if (!delta) continue;
+    const cls = delta > 0 ? 'stat-diff-up' : 'stat-diff-down';
+    parts.push(`<span class="${cls}">${label}${formatEquipStatDelta(key, delta, pct)}</span>`);
+  }
+  return parts.length
+    ? `<div class="equip-candidate-diff">${parts.join(' ')}</div>`
+    : '<div class="equip-candidate-diff"><span class="stat-diff-neutral">对比当前：属性无变化</span></div>';
+}
+
+function renderEquipPickerModal() {
+  const modal = document.getElementById('equipModal');
+  if (!modal || !pickingSlot) return;
+  const slot = pickingSlot;
+  const current = state.equip[slot];
+  document.getElementById('equipModalTitle').textContent = `更换${SLOT_NAMES[slot]}`;
+  const currentEl = document.getElementById('equipModalCurrent');
+  if (currentEl) {
+    currentEl.innerHTML = current
+      ? `<div class="equip-modal-current-label">当前装备</div>
+        <span class="${badgeRarityClass(current)}">${getRarityLabel(current)}</span> <b>${esc(current.name)}</b>
+        <div class="item-desc">${statLabel(current)}${current.setId ? ' · ' + esc(SET_DEFS[current.setId]?.name || '') : ''}</div>`
+      : `<div class="equip-modal-current-label">当前装备</div><span class="stat-diff-neutral">未装备</span>`;
+  }
+  const candidates = state.bag.filter(i => i.slot === slot && i.type !== 'material');
+  const listEl = document.getElementById('equipModalList');
+  if (!listEl) return;
+  listEl.innerHTML = candidates.length === 0
+    ? '<li class="skill-empty">背包无此部位装备</li>'
+    : candidates.map(item => `<li class="${rarityClass(item)}">
+        <div class="equip-candidate-main">
+          <span class="${badgeRarityClass(item)}">${getRarityLabel(item)}</span> <b>${esc(item.name)}</b>
+          <div class="item-desc">${statLabel(item)}${item.setId ? ' · ' + esc(SET_DEFS[item.setId]?.name || '') : ''}</div>
+        </div>
+        ${renderEquipStatDiff(slot, item)}
+        <div class="equip-candidate-actions">
+          <button type="button" class="btn btn-sm" onclick="equipFromPicker('${item.uid}')">装备</button>
+        </div></li>`).join('');
+  modal.classList.add('active');
+}
+
 function esc(str) { const d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
 
 function renderTopBar() {
@@ -62,6 +135,17 @@ function buildPathGridHtml(g, regionBoss) {
   const pathSet = new Set(g.path);
   const cleared = new Set(g.clearedEncounters || []);
   const revealed = new Set(g.revealed || []);
+
+  const fightOrder = g.path.filter(k => {
+    const cell = g.cells[k];
+    return cell && isFightCell(cell);
+  });
+  const fightNum = {};
+  fightOrder.forEach((k, i) => { fightNum[k] = i + 1; });
+  const remainingFight = fightOrder.filter(k => !cleared.has(k));
+  const currentCell = (g.phase === 'ready' && state.battleOn) ? remainingFight[0] : null;
+  const circled = ['', '①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮'];
+
   let html = '';
   for (let r = 0; r < g.rows; r++) {
     for (let c = 0; c < g.cols; c++) {
@@ -77,6 +161,7 @@ function buildPathGridHtml(g, regionBoss) {
       const isEnd = key === g.end;
       const clearedCell = cleared.has(key);
       const isFight = isFightCell(cell);
+      const isCurrent = key === currentCell;
 
       let cls = 'grid-cell';
       if (ct === 'start') cls += ' cell-start';
@@ -88,19 +173,33 @@ function buildPathGridHtml(g, regionBoss) {
       if (onPath && !isStart && !isEnd) {
         cls += g.phase === 'draw' ? ' cell-path' : ' cell-path-locked';
       }
-      if (g.phase === 'ready' && isFight && onPath && !clearedCell) cls += ' cell-pending';
+      if (g.phase === 'ready' && isFight && onPath && !clearedCell && !isCurrent) cls += ' cell-pending';
       if (g.phase === 'ready' && clearedCell) cls += ' cell-cleared';
+      if (isCurrent) cls += ' cell-battling';
       if (revealed.has(key) && g.phase === 'draw') cls += ' cell-revealed';
 
-      let label = CELL_LABEL[ct] || '';
-      if (ct === 'boss') label = '👑';
-      if (ct === 'elite') label = '⭐';
-      if (g.phase === 'ready' && clearedCell && isFight) label = '✓';
-      else if (g.phase === 'ready' && isFight && onPath && !clearedCell) label = ct === 'boss' ? '👑' : (ct === 'elite' ? '⭐' : '?');
-      else if (onPath && !isStart && !isEnd && g.phase === 'draw' && !label) label = '·';
-      else if (g.phase === 'draw' && revealed.has(key) && (ct === 'encounter' || ct === 'boss' || ct === 'elite')) label = ct === 'boss' ? '👑' : (ct === 'elite' ? '⭐' : '?');
+      let label = '';
+      if (g.phase === 'ready' && isFight && onPath) {
+        if (clearedCell) {
+          label = '✓';
+        } else if (isCurrent) {
+          if (ct === 'boss') label = '👑';
+          else if (ct === 'elite') label = '⭐';
+          else label = '⚔';
+        } else {
+          const n = fightNum[key] || 0;
+          label = circled[n] || String(n);
+        }
+      } else {
+        label = CELL_LABEL[ct] || '';
+        if (ct === 'boss') label = '👑';
+        if (ct === 'elite') label = '⭐';
+        if (onPath && !isStart && !isEnd && g.phase === 'draw' && !label) label = '·';
+        else if (g.phase === 'draw' && revealed.has(key) && (ct === 'encounter' || ct === 'boss' || ct === 'elite')) label = ct === 'boss' ? '👑' : (ct === 'elite' ? '⭐' : '?');
+      }
 
-      const title = ct === 'boss' ? `Boss：${regionBoss.name}` : ct;
+      const title = ct === 'boss' ? `Boss：${regionBoss.name}`
+        : (isFight && fightNum[key] ? `第${fightNum[key]}战 · ${ct}` : ct);
       html += `<button type="button" class="${cls}" data-r="${r}" data-c="${c}" title="${title}">${label}</button>`;
     }
   }
@@ -111,15 +210,26 @@ function updateMapStatusLine() {
   const g = state.grid;
   if (!g) return;
   const statusEl = document.getElementById('gridStatus');
-  const remaining = getRemainingFightCells().length;
-  const totalEnc = getPathFightCells().length;
+  const cleared = new Set(g.clearedEncounters || []);
+  const fightOrder = g.path.filter(k => {
+    const cell = g.cells[k];
+    return cell && isFightCell(cell);
+  });
+  const remaining = fightOrder.filter(k => !cleared.has(k));
+  const remainingCount = remaining.length;
+  const totalEnc = fightOrder.length;
   const best = state.bestRoutes?.[state.currentRegion];
   if (g.phase === 'draw') {
     statusEl.textContent = gridPathValid()
-      ? '路线已连通，点击「确认路线」开始挂机（短路线有捷径奖励）'
-      : '左键拖线 · 右键取消 · 👑Boss 📦箱 💊补给';
+      ? `路线已连通 · ${totalEnc} 战${totalEnc > 0 ? '（' + fightOrder.filter(k => g.cells[k]?.type === 'boss').length + ' Boss）' : ''} · 点击「确认路线」开始`
+      : '左键拖线 · 右键取消 · 👑Boss ⭐精英 📦箱 💊补给';
   } else {
-    statusEl.textContent = `航线锁定 · 剩余 ${remaining}/${totalEnc} 战 · ${state.battleOn ? '挂机中…' : '在战斗窗口开始挂机'}` +
+    const done = totalEnc - remainingCount;
+    const at = done + 1;
+    statusEl.textContent = (state.battleOn && remainingCount > 0
+      ? `⚔ 第 ${at}/${totalEnc} 战 · 剩余 ${remainingCount} 战`
+      : `航线锁定 · ${remainingCount > 0 ? `待战 ${remainingCount}/${totalEnc}` : '已全部清剿'}`) +
+      (state.battleOn ? ' · 挂机中…' : '') +
       (best ? ` · 最佳 ${best.steps} 步` : '');
   }
   document.getElementById('gridClear').disabled = g.phase === 'ready' && state.battleOn;
@@ -146,41 +256,127 @@ function renderMap() {
   const g = state.grid;
   const regionBoss = getRegionBoss(region.id);
 
-  document.getElementById('gridRegionTabs').innerHTML = REGIONS.map(r => {
-    const locked = typeof canAccessRegion === 'function' ? !canAccessRegion(r.id) : state.level < r.minLevel;
-    const active = r.id === state.currentRegion;
-    const disabled = locked || (g.phase === 'ready' && state.battleOn);
-    return `<button type="button" class="grid-region-tab${active ? ' active' : ''}${locked ? ' locked' : ''}" data-region="${r.id}"${disabled ? ' disabled' : ''}>${r.name}</button>`;
-  }).join('');
+  const regionChanged = state._lastMapRegion !== region.id
+    || state._lastMapCleared !== (g.mapsCleared || 0);
 
-  renderMapGridOnly();
+  if (regionChanged || !state.battleOn) {
+    state._lastMapRegion = region.id;
+    state._lastMapCleared = g.mapsCleared || 0;
 
-  const banner = regionArt(region.id);
-  document.getElementById('gridMapInfo').innerHTML =
-    `${banner ? pixelImg(banner, region.name, 'region-banner') : ''}
-    <strong>${region.name}</strong> · 不规则地图 · 已通关 ${g.mapsCleared || 0} 次<br>${region.desc}
-    ${STORY.regions[region.id]?.intro ? `<br><em>${STORY.regions[region.id].intro}</em>` : ''}
-    <br><span class="footer-tip">本地区经验倍率 ×${region.xpMult}</span>`;
+    document.getElementById('gridRegionTabs').innerHTML = REGIONS.map(r => {
+      const locked = typeof canAccessRegion === 'function' ? !canAccessRegion(r.id) : state.level < r.minLevel;
+      const active = r.id === state.currentRegion;
+      const disabled = locked || (g.phase === 'ready' && state.battleOn);
+      return `<button type="button" class="grid-region-tab${active ? ' active' : ''}${locked ? ' locked' : ''}" data-region="${r.id}"${disabled ? ' disabled' : ''}>${r.name}</button>`;
+    }).join('');
 
-  document.getElementById('mapBattleTitle').textContent = `挂机战斗 · ${region.name}`;
+    const banner = regionArt(region.id);
+    document.getElementById('gridMapInfo').innerHTML =
+      `${banner ? pixelImg(banner, region.name, 'region-banner') : ''}
+      <strong>${region.name}</strong> · 不规则地图 · 已通关 ${g.mapsCleared || 0} 次<br>${region.desc}
+      ${STORY.regions[region.id]?.intro ? `<br><em>${STORY.regions[region.id].intro}</em>` : ''}
+      <br><span class="footer-tip">本地区经验倍率 ×${region.xpMult}</span>`;
 
-  const weather = REGION_WEATHER[region.id] || REGION_WEATHER.village;
-  const wEl = document.getElementById('regionWeather');
-  if (wEl) {
-    wEl.innerHTML = `<span class="weather-icon">${weather.icon}</span>
-      <div><b>天时 · ${weather.name}</b><p>${esc(weather.tip)}</p></div>`;
+    document.getElementById('mapBattleTitle').textContent = `挂机战斗 · ${region.name}`;
+
+    const weather = REGION_WEATHER[region.id] || REGION_WEATHER.village;
+    const wEl = document.getElementById('regionWeather');
+    if (wEl) {
+      wEl.innerHTML = `<span class="weather-icon">${weather.icon}</span>
+        <div><b>天时 · ${weather.name}</b><p>${esc(weather.tip)}</p></div>`;
+    }
+
+    const gallery = document.getElementById('monsterGallery');
+    if (gallery) {
+      gallery.innerHTML = `
+        <p class="bag-section-title">本地区怪物 · 航线 Boss：<b>${regionBoss.name}</b></p>
+        <div class="monster-gallery-grid">
+          <div class="monster-thumb boss-thumb">${bossPortraitHtml(region.id)}<span>${regionBoss.name}</span></div>
+          ${region.monsters.map(n =>
+            `<div class="monster-thumb">${monsterPortraitHtml(n)}<span>${n}</span></div>`
+          ).join('')}
+        </div>`;
+    }
   }
 
-  const gallery = document.getElementById('monsterGallery');
-  if (gallery) {
-    gallery.innerHTML = `
-      <p class="bag-section-title">本地区怪物 · 航线 Boss：<b>${regionBoss.name}</b></p>
-      <div class="monster-gallery-grid">
-        <div class="monster-thumb boss-thumb">${bossPortraitHtml(region.id)}<span>${regionBoss.name}</span></div>
-        ${region.monsters.map(n =>
-          `<div class="monster-thumb">${monsterPortraitHtml(n)}<span>${n}</span></div>`
-        ).join('')}
-      </div>`;
+  renderMapGridOnly();
+  renderMapBattleInline();
+}
+
+function renderMapBattleInline() {
+  const panel = document.getElementById('mapBattleRail');
+  if (!panel) return;
+  const placeholder = document.getElementById('mapBattlePlaceholder');
+  const units = document.getElementById('mapBattleUnits');
+  const controls = document.getElementById('mapBattleControlsWrap');
+  const logEl = document.getElementById('mapBattleLog');
+
+  const showBattle = state.battleOn || state.pendingDefeatRetry || (state.grid && state.grid.phase === 'ready');
+  if (!showBattle) {
+    if (placeholder) placeholder.style.display = '';
+    if (units) units.style.display = 'none';
+    if (controls) controls.style.display = 'none';
+    if (logEl) logEl.style.display = 'none';
+    return;
+  }
+  if (placeholder) placeholder.style.display = 'none';
+  if (units) units.style.display = '';
+  if (controls) controls.style.display = '';
+  if (logEl) logEl.style.display = '';
+
+  const s = calcStats(); clampHp();
+  const hpPct = s.maxHp ? (state.currentHp / s.maxHp * 100).toFixed(0) : 100;
+  const maxMp = calcMaxMp(state.level);
+  const mp = getCurrentMp();
+  const mpPct = maxMp ? (mp / maxMp * 100).toFixed(0) : 0;
+  const power = calcCombatPower();
+
+  let playerHtml = `<div class="mbi-unit">
+    <div class="mbi-sprite">${unitPortraitHtml(ASSETS.characters.player, state.name, '⚔️', 'unit-sprite')}</div>
+    <div class="mbi-info">
+      <b>${esc(state.name)}</b> <span class="footer-tip">战力${power}</span>
+      <div class="unit-hp-bar"><div class="bar-fill hp" style="width:${hpPct}%"></div></div>
+      <span class="footer-tip">HP ${state.currentHp}/${s.maxHp} · 精力 ${mp}/${maxMp}</span>
+    </div>
+  </div>`;
+
+  let enemyHtml = '';
+  if (state.monster) {
+    const m = state.monster;
+    const epct = Math.max(0, m.hp / m.maxHp * 100);
+    enemyHtml = `<div class="mbi-vs">VS</div><div class="mbi-unit">
+      <div class="mbi-sprite">${battlePortraitHtml(m)}</div>
+      <div class="mbi-info">
+        <b>${m.isBoss ? '👑 ' : ''}${esc(m.name)}</b> <span class="footer-tip">Lv.${m.level}</span>
+        <div class="unit-hp-bar"><div class="bar-fill hp enemy-hp" style="width:${epct}%"></div></div>
+        <span class="footer-tip">HP ${Math.max(0, m.hp)}/${m.maxHp}</span>
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('mapBattleUnits').innerHTML = playerHtml + enemyHtml;
+
+  const btn = document.getElementById('mapToggleBattle');
+  if (btn) {
+    btn.textContent = state.battleOn ? '停止挂机' : (state.pendingDefeatRetry ? '战败待选' : '开始挂机');
+    btn.className = state.battleOn ? 'btn btn-danger' : 'btn btn-primary';
+    const canBattle = canStartGridBattle();
+    btn.disabled = (!state.battleOn && !canBattle) || state.pendingDefeatRetry;
+  }
+
+  const statsLine = document.getElementById('mapBattleStatsLine');
+  if (statsLine) {
+    const st = state.battleStats;
+    statsLine.textContent = st?.fights ? formatBattleStatsSummary() : '';
+  }
+
+  if (logEl && state.battleOn) {
+    const fullLog = document.getElementById('battleLog');
+    if (fullLog) {
+      const lines = fullLog.querySelectorAll('.log-line');
+      const recent = Array.from(lines).slice(0, 4).reverse();
+      logEl.innerHTML = recent.map(p => `<p>${p.innerHTML}</p>`).join('');
+    }
   }
 }
 
@@ -416,16 +612,19 @@ function renderChar() {
   renderCharDashboard();
   renderCharStory();
   document.getElementById('charProfile').innerHTML = `
-    <div class="char-head">
-      <div>
+    <div class="char-profile-split">
+      <div class="char-profile-info">
         <div class="char-name">${esc(state.name)}</div>
         <div class="char-title">${esc(state.title)}</div>
+        <div class="char-bio">${esc(state.bio || '暂无简介')}</div>
+        <div class="char-meta-row">
+          <div class="spirit-root-chip" title="${esc(root.desc)}">🌱 ${root.name}</div>
+        </div>
+        <div class="combat-power-box" title="（六维和+暴率×500+爆伤×200+精力）×灵根">战力 <span class="combat-power-lg">${power}</span></div>
       </div>
-      <div class="combat-power-box" title="（六维和+暴率×500+爆伤×200+精力）×灵根">战力 <span class="combat-power-lg">${power}</span></div>
-    </div>
-    <div class="char-bio">${esc(state.bio || '暂无简介')}</div>
-    <div class="char-meta-row">
-      <div class="spirit-root-chip" title="${esc(root.desc)}">🌱 ${root.name}</div>
+      <div class="char-portrait-wrap">
+        <img src="assets/img/characters/player.png" alt="主角立绘" class="char-portrait pixel-art" onerror="this.parentElement.style.display='none'">
+      </div>
     </div>`;
   document.getElementById('charStats').innerHTML = `
     <div class="stat-item"><b>HP</b><span>${state.currentHp}/${s.maxHp}</span></div>
@@ -444,17 +643,7 @@ function renderChar() {
   for (const slot of SET_SLOTS) slotsHtml += renderSlot(slot, true);
   document.getElementById('equipSlots').innerHTML = slotsHtml;
 
-  const picker = document.getElementById('slotPicker');
-  if (pickingSlot) {
-    picker.style.display = 'block';
-    document.getElementById('slotPickerTitle').textContent = `选择${SLOT_NAMES[pickingSlot]}`;
-    const candidates = state.bag.filter(i => i.slot === pickingSlot && i.type !== 'material');
-    document.getElementById('slotPickerList').innerHTML = candidates.length === 0
-      ? '<li class="skill-empty">背包无此部位装备</li>'
-      : candidates.map(item => `<li class="${rarityClass(item)}"><span class="item-info"><span class="${badgeRarityClass(item)}">${getRarityLabel(item)}</span> ${esc(item.name)}
-          <div class="item-desc">${statLabel(item)}${item.setId ? ' · ' + SET_DEFS[item.setId]?.name : ''}</div></span>
-          <button class="btn btn-sm" onclick="equipFromPicker('${item.uid}')">装备</button></li>`).join('');
-  } else picker.style.display = 'none';
+  if (pickingSlot) renderEquipPickerModal();
   renderCharCheat();
 }
 
@@ -528,15 +717,10 @@ function renderBattleToolbar() {
   const el = document.getElementById('battleToolbar');
   if (!el) return;
   const spd = state.battleSpeed || 1;
-  const mode = state.idleMode || 'balanced';
   el.innerHTML = `
     <div class="toolbar-group">
       <span class="toolbar-label">战斗速度</span>
       ${Object.keys(BATTLE_SPEEDS).map(k => `<button type="button" class="btn btn-sm${+k === spd ? '' : ' btn-outline'}" onclick="setBattleSpeed(${k})">${k}×</button>`).join('')}
-    </div>
-    <div class="toolbar-group">
-      <span class="toolbar-label">用药策略</span>
-      ${Object.values(IDLE_MODES).map(m => `<button type="button" class="btn btn-sm${m.id === mode ? '' : ' btn-outline'}" onclick="setIdleMode('${m.id}')" title="${esc(m.desc)}">${m.name}</button>`).join('')}
     </div>`;
 }
 
@@ -673,18 +857,24 @@ function renderLife() {
   const spBar = document.getElementById('lifeSpBar');
   if (spBar) spBar.textContent = `生活点：${state.lifeSp || 0}（采集 +1）`;
 
+  const anyLifeActive = LIFE_SKILLS.some(s => now < (state.lifeCd[s.id] || 0));
   document.getElementById('lifeGrid').innerHTML = LIFE_SKILLS.map(skill => {
     const bonus = getLifeBonuses(skill.id);
     const cdMs = Math.floor(skill.cd * bonus.cdMult);
     const cdLeft = Math.max(0, Math.ceil(((state.lifeCd[skill.id] || 0) - now) / 1000));
-    const onCd = cdLeft > 0;
-    const gMin = Math.floor(skill.gold[0] * bonus.goldMult);
-    const gMax = Math.floor(skill.gold[1] * bonus.goldMult);
-    const xpShow = skill.xp + bonus.xpBonus;
+    const ownCd = cdLeft > 0;
+    const blocked = anyLifeActive && !ownCd;
+    const disabled = ownCd || blocked;
+    const matMin = (skill.matCount ? skill.matCount[0] : 1) + (bonus.matBonus || 0);
+    const matMax = (skill.matCount ? skill.matCount[1] : 1) + (bonus.matBonus || 0);
+    const xpShow = Math.floor(skill.xp * (bonus.xpMult || 1));
+    let btnText = '进行';
+    if (ownCd) btnText = `冷却 ${cdLeft}s`;
+    else if (blocked) btnText = '忙碌中';
     return `<div class="life-card">
       <h3>${skill.icon} ${skill.name}</h3>
-      <p>${skill.msg}，获得 <b>${skill.mat.name}</b><br>${CURRENCY_NAME} ${gMin}~${gMax} · 经验 +${xpShow}</p>
-      <button type="button" class="btn btn-sm" data-life="${skill.id}" ${onCd ? 'disabled' : ''}>${onCd ? `冷却 ${cdLeft}s` : '进行'}</button>
+      <p>${skill.msg}，获得 <b>${skill.mat.name}</b> ×${matMin}~${matMax}<br>经验 +${xpShow}</p>
+      <button type="button" class="btn btn-sm" data-life="${skill.id}" ${disabled ? 'disabled' : ''}>${btnText}</button>
       <div class="life-cd">间隔 ${(cdMs / 1000).toFixed(1)} 秒</div>
     </div>`;
   }).join('');
@@ -737,6 +927,7 @@ function renderLifeTree() {
 
 function renderShop() {
   document.querySelectorAll('.shop-tab').forEach(t => t.classList.toggle('active', t.dataset.shop === shopTab));
+
   if (shopTab === 'martial') {
     const slots = getMartialSlotCount();
     const learned = state.martialArts || [];
@@ -755,12 +946,70 @@ function renderShop() {
     }).join('');
     return;
   }
-  document.getElementById('shopList').innerHTML = getShopItems().map(item => {
+
+  const items = getShopItems();
+  const filterSlots = shopTab === 'set'
+    ? ['head', 'body', 'legs', 'feet']
+    : (shopTab === 'weapon' ? ['weapon'] : []);
+
+  let shopFilter = (state._shopFilter || 'all');
+  if (!filterSlots.length || !filterSlots.includes(shopFilter)) shopFilter = 'all';
+
+  let filterHtml = '';
+  if (filterSlots.length > 1) {
+    filterHtml = `<div class="shop-filter-bar">
+      <button class="shop-filter-chip ${shopFilter === 'all' ? 'active' : ''}" data-shop-filter="all">全部</button>
+      ${filterSlots.map(s => `<button class="shop-filter-chip ${shopFilter === s ? 'active' : ''}" data-shop-filter="${s}">${SLOT_NAMES[s] || s}</button>`).join('')}
+    </div>`;
+  }
+
+  const filtered = shopFilter === 'all' ? items : items.filter(i => i.slot === shopFilter);
+
+  document.getElementById('shopList').innerHTML = filterHtml + filtered.map(item => {
+    const price = getShopPrice(item);
+    const owned = !canBuyShopEquip(item);
+    const canAfford = state.gold >= price;
+    const btnLabel = owned ? '已拥有' : formatCoin(price);
+    const repeatHint = (item.rarity || 'common') === 'common' ? '' : ' · 仅此一件';
     const tag = item.setId ? SET_DEFS[item.setId]?.name : (SLOT_NAMES[item.slot] || '');
-    return `<li class="${rarityClass(item)}"><span class="item-info"><span class="${badgeRarityClass(item)}">${getRarityLabel(item)}</span> ${tag ? `<span class="badge common">${tag}</span>` : ''} ${esc(item.name)} · ${statLabel(item)}
-      ${item.desc ? `<div class="item-desc">${esc(item.desc)}</div>` : ''}</span>
-      <button class="btn btn-sm" onclick="buyFromShop('${item.id}')" ${state.gold < item.price ? 'disabled' : ''}>${formatCoin(item.price)}</button></li>`;
+    const currentEquip = state.equip[item.slot];
+    const isUpgrade = !owned && currentEquip && isShopItemBetter(item, currentEquip);
+
+    let cmpHtml = '';
+    if (currentEquip && !owned) {
+      cmpHtml = `<div class="shop-compare">${renderEquipStatDiff(item.slot, item)}</div>`;
+    } else if (!currentEquip && !owned) {
+      cmpHtml = `<div class="shop-compare"><span class="stat-diff-up">该部位为空，可装备</span></div>`;
+    }
+
+    return `<div class="shop-card ${rarityClass(item)}${isUpgrade ? ' shop-upgrade' : ''}">
+      <div class="shop-card-top">
+        <span class="${badgeRarityClass(item)}">${getRarityLabel(item)}</span>
+        ${tag ? `<span class="badge common">${esc(tag)}</span>` : ''}
+        <b>${esc(item.name)}</b>
+        ${isUpgrade ? '<span class="badge epic shop-upgrade-tag">↑ 提升</span>' : ''}
+      </div>
+      <div class="shop-card-stats">${statLabel(item)}${repeatHint}</div>
+      ${cmpHtml}
+      ${item.desc ? `<div class="item-desc">${esc(item.desc)}</div>` : ''}
+      <div class="shop-card-foot">
+        <span class="shop-price">${formatCoin(price)}</span>
+        <button class="btn btn-sm" onclick="buyFromShop('${item.id}')" ${owned || !canAfford ? 'disabled' : ''}>${btnLabel}</button>
+      </div>
+    </div>`;
   }).join('');
+}
+
+function isShopItemBetter(shopItem, equipped) {
+  const s = normalizeStats(shopItem);
+  const e = normalizeStats(equipped);
+  let better = 0, worse = 0;
+  for (const key of Object.keys({ ...s, ...e })) {
+    const sv = s[key] || 0, ev = e[key] || 0;
+    if (sv > ev) better++;
+    else if (sv < ev) worse++;
+  }
+  return better > worse;
 }
 
 function renderCodexEquipEntries(filterCategory) {

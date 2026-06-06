@@ -1,10 +1,4 @@
-// v3.0 元系统：成就、悬赏、宠物加成、青岚焰、挂机策略
-
-const IDLE_MODES = {
-  safe: { id: 'safe', name: '保守', healRatio: 0.55, desc: '生命＜55% 自动用药' },
-  balanced: { id: 'balanced', name: '均衡', healRatio: 0.4, desc: '生命＜40% 自动用药' },
-  aggressive: { id: 'aggressive', name: '激进', healRatio: 0.25, desc: '生命＜25% 才用药，省药多打' },
-};
+// v3.0 元系统：成就、悬赏、宠物加成、青岚焰
 
 const BATTLE_SPEEDS = { 1: 900, 2: 450 };
 

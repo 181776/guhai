@@ -74,9 +74,25 @@ function showDialog(id, customLines, onClose, customTitle) {
   if (!def && !customLines) return false;
   const lines = customLines || def.lines;
   const title = customTitle || def?.title || '剧情';
+
+  if (state.battleOn) {
+    if (!state._deferredDialogs) state._deferredDialogs = [];
+    state._deferredDialogs.push({ title, lines, onClose });
+    return true;
+  }
+
   dialogQueue.push({ title, lines, onClose });
   if (dialogQueue.length === 1) renderDialogStep();
   return true;
+}
+
+function flushDeferredDialogs() {
+  if (!state._deferredDialogs?.length) return;
+  for (const d of state._deferredDialogs) {
+    dialogQueue.push(d);
+  }
+  state._deferredDialogs = [];
+  if (dialogQueue.length > 0) renderDialogStep();
 }
 
 function tryShowDialog(id, customLines, onClose) {

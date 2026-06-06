@@ -36,7 +36,7 @@ const MONSTER_TRAIT_BY_NAME = {
 };
 
 function createBattleStats() {
-  return { fights: 0, kills: 0, bossKills: 0, damageDealt: 0, damageTaken: 0, crits: 0, potionsUsed: 0 };
+  return { fights: 0, kills: 0, bossKills: 0, damageDealt: 0, damageTaken: 0, crits: 0 };
 }
 
 function resetBattleStats() {
@@ -57,7 +57,7 @@ function formatBattleStatsSummary() {
   if (!st || !st.fights) return '';
   return `战斗统计：${st.fights}战 ${st.kills}胜` +
     ` · Boss ${st.bossKills} · 造成${st.damageDealt} · 承受${st.damageTaken}` +
-    ` · 暴击${st.crits} · 用药${st.potionsUsed}`;
+    ` · 暴击${st.crits}`;
 }
 
 function applyMonsterTrait(m) {
@@ -323,7 +323,6 @@ function battleTick() {
       }
     }
   }
-  autoUseIdleHeal();
   clampHp();
   if (m.hp <= 0) {
     const sourceCell = m.sourceCell;
@@ -364,10 +363,6 @@ function battleTick() {
     return;
   }
   if ((state.currentHp ?? 0) <= 0) {
-    if (autoUseEmergencyHeal()) {
-      render(); save();
-      return;
-    }
     handleBattleDefeat();
     return;
   }
@@ -411,10 +406,12 @@ function learnManual(item) {
 }
 
 function buyItem(shopItem) {
-  if (state.gold < shopItem.price) return;
+  if (!canBuyShopEquip(shopItem)) return;
+  const price = getShopPrice(shopItem);
+  if (state.gold < price) return;
   if (shopItem.type === 'manual' && (state.skills.some(s => s.id === shopItem.id) || state.bag.some(i => i.id === shopItem.id && i.type === 'manual'))) return;
-  state.gold -= shopItem.price;
-  trackGoldSpent(shopItem.price);
+  state.gold -= price;
+  trackGoldSpent(price);
   addToBag({ ...shopItem, uid: Date.now() + Math.random() });
   render(); save();
 }
@@ -434,23 +431,30 @@ function doLifeSkill(id) {
   const now = Date.now();
   const bonus = getLifeBonuses(id);
   const cdMs = Math.floor(skill.cd * bonus.cdMult);
-  if (now < (state.lifeCd[id] || 0)) {
-    const left = Math.ceil((state.lifeCd[id] - now) / 1000);
-    document.getElementById('lifeToast').textContent = `${skill.name} 冷却中，还需 ${left} 秒`;
+
+  const anyActive = LIFE_SKILLS.some(s => now < (state.lifeCd[s.id] || 0));
+  if (anyActive) {
+    const active = LIFE_SKILLS.find(s => now < (state.lifeCd[s.id] || 0));
+    const left = Math.ceil(((state.lifeCd[active.id] || 0) - now) / 1000);
+    document.getElementById('lifeToast').textContent = `正在进行 ${active.name}，还需 ${left} 秒`;
     return;
   }
+
   state.lifeCd[id] = now + cdMs;
-  addToBag({ ...skill.mat }, { notify: true });
-  const baseG = skill.gold[0] + Math.floor(Math.random() * (skill.gold[1] - skill.gold[0] + 1));
-  const g = applyGoldGain(Math.floor(baseG * bonus.goldMult));
-  state.gold += g;
-  const xpGain = skill.xp + bonus.xpBonus;
+  const baseCount = skill.matCount
+    ? skill.matCount[0] + Math.floor(Math.random() * (skill.matCount[1] - skill.matCount[0] + 1))
+    : 1;
+  const totalMat = baseCount + (bonus.matBonus || 0);
+  for (let i = 0; i < totalMat; i++) {
+    addToBag({ ...skill.mat }, { notify: false });
+  }
+  const xpGain = Math.floor(skill.xp * (bonus.xpMult || 1));
   state.xp += applyXpGain(xpGain);
   state.lifeSp = (state.lifeSp || 0) + 1;
   checkLevelUp(true);
   checkAchievements();
   document.getElementById('lifeToast').textContent =
-    `${skill.icon} ${skill.msg}！获得 ${skill.mat.name} ×1，+${formatCoin(g)}，+${xpGain} 经验 · 生活点 +1`;
+    `${skill.icon} ${skill.msg}！获得 ${skill.mat.name} ×${totalMat}，+${xpGain} 经验 · 生活点 +1`;
   render(); save();
 }
 

@@ -55,10 +55,6 @@
             <div class="card">
               <h2>装备栏位</h2>
               <div class="equip-slots" id="equipSlots"></div>
-              <div id="slotPicker" class="slot-picker" style="display:none">
-                <h3 id="slotPickerTitle">从背包选择</h3>
-                <ul class="picker-list" id="slotPickerList"></ul>
-              </div>
               <p class="footer-tip">套装效果请见图鉴 · 装备页；习得武功请见「商店 · 武功阁」</p>
             </div>
             <details class="card char-cheat-card">
@@ -111,26 +107,24 @@
     </div>
 
     <div class="page" id="page-map">
-      <div class="stage-page">
-        <header class="stage-head">
-          <div>
-            <h1 class="stage-title">航线地图</h1>
-            <p class="stage-sub footer-tip">黑格连蓝格 · 👑Boss · ⭐精英 · 左键拖线 · 确认后挂机</p>
+      <div class="map-page-layout">
+        <div class="map-page-main">
+          <header class="stage-head">
+            <div>
+              <h1 class="stage-title">航线地图</h1>
+              <p class="stage-sub footer-tip">黑格连蓝格 · 👑Boss · ⭐精英 · 左键拖线 · 确认后挂机</p>
+            </div>
+            <div id="regionWeather" class="region-weather stage-weather"></div>
+          </header>
+          <div class="px-panel">
+            <h3 class="px-panel-title">游历地区</h3>
+            <div class="grid-region-tabs" id="gridRegionTabs"></div>
           </div>
-          <div id="regionWeather" class="region-weather stage-weather"></div>
-        </header>
-        <div class="stage-layout">
-          <aside class="stage-rail">
-            <div class="px-panel">
-              <h3 class="px-panel-title">游历地区</h3>
-              <div class="grid-region-tabs" id="gridRegionTabs"></div>
-            </div>
-            <div class="px-panel stage-side-info">
-              <h3 class="px-panel-title">地区情报</h3>
-              <div id="gridMapInfo" class="stage-region-info"></div>
-            </div>
-          </aside>
-          <section class="px-panel stage-arena map-arena">
+          <div class="px-panel stage-side-info">
+            <h3 class="px-panel-title">地区情报</h3>
+            <div id="gridMapInfo" class="stage-region-info"></div>
+          </div>
+          <div class="px-panel map-arena">
             <div class="arena-head">
               <p class="grid-status" id="gridStatus">左键长按拖线，从黑格连到蓝格</p>
             </div>
@@ -146,11 +140,21 @@
               <button type="button" class="btn btn-sm btn-outline" id="routeExport">复制路线</button>
               <button type="button" class="btn btn-sm btn-outline" id="routeImport">导入路线</button>
             </div>
-          </section>
+          </div>
+          <div class="px-panel stage-gallery-wrap">
+            <div id="monsterGallery" class="monster-gallery"></div>
+          </div>
         </div>
-        <div class="px-panel stage-gallery-wrap">
-          <div id="monsterGallery" class="monster-gallery"></div>
-        </div>
+        <aside class="map-battle-rail px-panel" id="mapBattleRail">
+          <h2 class="story-rail-title">⚔ 航线战斗</h2>
+          <p class="footer-tip" id="mapBattlePlaceholder">确认路线后在此处指挥战斗</p>
+          <div class="map-battle-units" id="mapBattleUnits" style="display:none"></div>
+          <div class="map-battle-controls" id="mapBattleControlsWrap" style="display:none">
+            <button class="btn btn-primary" id="mapToggleBattle">开始挂机</button>
+            <span class="map-battle-stats" id="mapBattleStatsLine"></span>
+          </div>
+          <div class="map-battle-log log" id="mapBattleLog" style="display:none"></div>
+        </aside>
       </div>
     </div>
 
@@ -306,6 +310,17 @@
         <button type="button" class="btn btn-primary" id="feedbackSubmit">提交到 GitHub</button>
         <button type="button" class="btn btn-outline" id="feedbackCopy">复制内容</button>
       </div>
+    </div>
+  </div>
+
+  <div class="equip-modal" id="equipModal" onclick="if(event.target===this)closeEquipModal()">
+    <div class="equip-modal-panel px-panel">
+      <div class="equip-modal-head">
+        <h2 id="equipModalTitle">更换装备</h2>
+        <button type="button" class="btn btn-sm btn-outline" onclick="closeEquipModal()">关闭</button>
+      </div>
+      <div id="equipModalCurrent" class="equip-modal-current"></div>
+      <ul class="equip-modal-list" id="equipModalList"></ul>
     </div>
   </div>
 

@@ -50,9 +50,3 @@ function formatCraftMats(mats) {
     return `<span class="${ok ? 'craft-ok' : 'craft-lack'}">${name} ${have}/${n}</span>`;
   }).join(' · ');
 }
-
-function autoUsePreBattleBuff() { return false; }
-function autoUseIdleHeal() { return false; }
-function autoUseEmergencyHeal() { return false; }
-function autoUseRouteCompleteBonus() { return false; }
-function getIdlePotionSummary() { return 'v3.5 已移除战斗药剂'; }
