@@ -11,6 +11,7 @@ const CODEX = {
   '狼王': { unlockKills: 1, lore: '血月之下双眼赤红的兽王，血煞帮曾试图驯服它。', weak: '火', boss: true },
   '骨将军': { unlockKills: 1, lore: '青岚剑宗旧战场的亡魂聚合体，剑意未散。', weak: '雷', boss: true },
   '血煞头目': { unlockKills: 1, lore: '占峰为王的匪首，赵凌亦需借其势上位。', weak: '物理', boss: true },
+  '魔焰执事': { unlockKills: 1, lore: '血煞帮余党以魔焰侵蚀尸骨所化的头目，焚天魔影的先遣。', weak: '光', boss: true },
 };
 
 function recordMonsterKill(name) {
